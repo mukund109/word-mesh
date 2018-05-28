@@ -104,5 +104,8 @@ venv.bak/
 # NLTK resource
 wordmesh/tokenizers
 
+# TODO file
+TODO.txt
+
 
 # End of https://www.gitignore.io/api/python
