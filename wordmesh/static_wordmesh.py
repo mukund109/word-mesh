@@ -6,6 +6,7 @@ Created on Sun May 27 02:20:39 2018
 @author: mukund
 """
 import gensim
+from utils import cooccurence_similarity_matrix as csm
 
 class StaticWordmesh():
     def __init__(self, text, dimensions=(100, 100),

@@ -11,7 +11,7 @@ import os
 #print(os.path.join(os.path.dirname(os.getcwd()), 'wordmesh'))
 sys.path.append(os.path.join(os.path.dirname(os.getcwd()), 'wordmesh'))
 
-import wordmesh
+from wordmesh import StaticWordmesh
 import unittest
 
 test_text = """Ground Control to Major Tom
@@ -51,12 +51,14 @@ And there's nothing I can do"
 class TestWordmesh(unittest.TestCase):
     
     def test_static_default_constructor(self):
-        wm = wordmesh.StaticWordmesh(test_text)
+        wm = StaticWordmesh(test_text)
         self.assertEqual(['planet', 'ground', 'countdown', 'knows', 'tom'], 
                          wm.keywords)
         
 if __name__ == '__main__':
-    unittest.main()
+    #unittest.main()
+    wm = StaticWordmesh(test_text, pos_filter=('JJ'))
+    print(wm.keywords)
         
         
         
