@@ -11,7 +11,7 @@ import os
 #print(os.path.join(os.path.dirname(os.getcwd()), 'wordmesh'))
 sys.path.append(os.path.join(os.path.dirname(os.getcwd()), 'wordmesh'))
 
-from wordmesh import StaticWordmesh
+from wordmesh import StaticWordmesh, equilibrium_positions
 import unittest
 
 test_text = """Ground Control to Major Tom
