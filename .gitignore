@@ -105,7 +105,10 @@ venv.bak/
 wordmesh/tokenizers
 
 # TODO file
-TODO.txt
+TODO
+
+# Temporary plotly plots
+temp-plot.html
 
 
 # End of https://www.gitignore.io/api/python
