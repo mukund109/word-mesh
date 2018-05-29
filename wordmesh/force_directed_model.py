@@ -165,14 +165,17 @@ def equilibrium_positions(current_positions, bounding_box_dimensions):
     #initial descent rate is a fraction of the distance between the centre and
     #furthest point, this was decided by trial and error
     max_radial_distance = np.max(np.sum(positions**2, axis=1)**(1/2))
-    initial_dr = max_radial_distance/40000    
+    initial_dr = max_radial_distance/35000    
     
     
-    for i in range(50):
+    for i in range(100):
         positions = _update_positions(positions, bounding_box_dimensions,
-                                      simplices, initial_dr*(1-i/50))
+                                      simplices, initial_dr*(1-i/100))
         
     return positions
+
+
+    
         
 
 

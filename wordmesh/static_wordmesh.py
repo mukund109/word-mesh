@@ -9,6 +9,8 @@ import gensim
 from utils import cooccurence_similarity_matrix as csm
 import numpy as np
 from sklearn.manifold import MDS
+from utils import _save_wordmesh_as_html, _get_bb_dimensions
+from force_directed_model import equilibrium_positions
 
 class StaticWordmesh():
     def __init__(self, text, dimensions=(100, 100),
@@ -206,6 +208,15 @@ class StaticWordmesh():
     
     
     def _generate_embeddings(self):
-        self.embeddings = MDS(2, dissimilarity='precomputed').\
+        mds = MDS(2, dissimilarity='precomputed').\
                              fit_transform(self.similarity_matrix)
+        bbd = _get_bb_dimensions(self.keywords, self.fontsizes_norm*100)
         
+        self.embeddings = equilibrium_positions(mds, bbd)
+
+    def save_as_html(self, force_directed_animation=False):
+        """
+        Temporary
+        """  
+        _save_wordmesh_as_html(self.embeddings, self.keywords, 
+                               self.fontsizes_norm*100, True)
