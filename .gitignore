@@ -109,6 +109,7 @@ TODO
 
 # Temporary plotly plots
 temp-plot.html
+wordmesh.html
 
 
 # End of https://www.gitignore.io/api/python

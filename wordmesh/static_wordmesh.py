@@ -10,7 +10,7 @@ from utils import cooccurence_similarity_matrix as csm
 import numpy as np
 from sklearn.manifold import MDS
 from utils import _save_wordmesh_as_html, _get_bb_dimensions, _get_mpl_figure
-from force_directed_model import equilibrium_positions
+from force_directed_model import ForceDirectedModel
 
 class StaticWordmesh():
     def __init__(self, text, dimensions=(500, 900),
@@ -215,30 +215,44 @@ class StaticWordmesh():
                              self.resolution[0], self.resolution[1])
         
         
-        embeddings = equilibrium_positions(mds, bbd)
+        fdm = ForceDirectedModel(mds, bbd, num_iters=100)
+        self.force_directed_model = fdm
+        
         if store_as_attribute:
-            self.embeddings = embeddings
+            self.embeddings = fdm.equilibrium_position()
             self._bounding_box_width_height = bbd
             self._fontsizes_real = real_fontsizes
             self._mds = mds
         
-        return embeddings
+        return fdm.equilibrium_position()
         
-    def _get_all_fditerations(self):
+    def _get_all_fditerations(self, num_slides=100):
+        all_pos = self.force_directed_model.all_centered_positions
+        num_iters = self.force_directed_model.num_iters
         
-        return equilibrium_positions(self._mds, self._bounding_box_width_height, True)
+        step_size = num_iters//num_slides
+        slides = []
 
-    def save_as_html(self, force_directed_animation=False):
+        for i in range(num_iters%step_size, num_iters, step_size):
+            slides.append(all_pos[i])
+            
+        return np.stack(slides)
+        
+
+    def save_as_html(self, filename='wordmesh.html', force_directed_animation=False):
         """
         Temporary
         """  
+        height, width = self.resolution[0], self.resolution[1]
         if force_directed_animation:
             all_positions = self._get_all_fditerations()
             _save_wordmesh_as_html(all_positions, self.keywords, 
-                                   self._fontsizes_real, self.resolution[0], self.resolution[1], True)
+                                   self._fontsizes_real, height, width, filename, animate=True)
         else:
             _save_wordmesh_as_html(self.embeddings, self.keywords, 
-                                   self._fontsizes_real, self.resolution[0], self.resolution[1])
+                                   self._fontsizes_real, height, width,
+                                   filename, textcolors=self.fontcolors)
+            
     def get_mpl_figure(self):
         #embeddings = self._generate_embeddings(backend='mpl',
         #                                       store_as_attribute=False)

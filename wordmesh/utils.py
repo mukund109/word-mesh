@@ -50,8 +50,10 @@ def _get_bb_dimensions(words, fontsizes_norm, height, width, padding=0.1):
     bb_heights = (0.972+0.088+padding)*square_side_length
     return np.array([bb_widths, bb_heights]).swapaxes(0, 1), square_side_length
 
-def get_layout(height, width, labels=[], title=None, axis_visible=False, bg_color='black', title_font_color='white',
-              title_font_size='auto', title_font_family='Courier New, monospace'):
+def get_layout(height, width, labels=[], title=None, axis_visible=False, 
+               bg_color='black', title_font_color='white',
+               title_font_size='auto', 
+               title_font_family='Courier New, monospace'):
     
     steps = []
     for label in labels:
@@ -94,7 +96,8 @@ def get_layout(height, width, labels=[], title=None, axis_visible=False, bg_colo
     
     return layout
 
-def get_trace(coordinates, words, sizes, textcolors='white', marker_opacity=0, 
+def get_trace(coordinates, words, sizes, textcolors='white', 
+              textfonts="Courier New, monospace", marker_opacity=0, 
               showlegend=False, legendgroup='default_legend', hovertext=None):
     
     coordinates = np.array(coordinates) 
@@ -117,7 +120,7 @@ def get_trace(coordinates, words, sizes, textcolors='white', marker_opacity=0,
                 ids = words,
         
                 x = coordinates[:,0],
-                y = coordinates[:,1],#.max() - coordinates[1],
+                y = coordinates[:,1],
                 
                 
                 mode = 'markers+text',
@@ -141,19 +144,30 @@ def generate_figure(traces, labels, layout, title='WordCloud'):
     
     return figure
 
-def _save_wordmesh_as_html(coordinates, words, fontsizes, height, width, animate=False):
+def _save_wordmesh_as_html(coordinates, words, fontsizes, height, width, 
+                           filename='temp-plot.html',
+                           title=None, textcolors='white', 
+                           hovertext=None, axis_visible=False, bg_color='black',
+                           title_font_color='white', title_font_size='auto', 
+                           title_font_family='Courier New, monospace', 
+                           animate=False):
     
     labels = ['default label']
+    traces = []
     if animate:
-        traces = [get_trace(coordinates[i], words, fontsizes) for i in range(coordinates.shape[0])]
-        labels = list(map(str,range(coordinates.shape[0])))
+        for i in range(coordinates.shape[0]):
+            traces.append(get_trace(coordinates[i], words, fontsizes, 
+                                    textcolors, hovertext=hovertext))
+            labels = list(map(str,range(coordinates.shape[0])))
+            
     else:
         traces = [get_trace(coordinates, words, fontsizes)]
         
-    layout = get_layout(height, width, labels)
+    layout = get_layout(height, width, labels, title, axis_visible, bg_color, 
+                        title_font_color, title_font_size, title_font_family)
         
     fig = generate_figure(traces, labels, layout)
-    py.plot(fig)
+    py.plot(fig, filename=filename, auto_open=False, show_link=False)
     
 def _get_mpl_figure(coordinates, words, fontsizes):
     fig, ax = plt.subplots(figsize=(10,10))

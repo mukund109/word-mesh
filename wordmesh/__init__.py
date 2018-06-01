@@ -9,4 +9,4 @@ from .static_wordmesh import StaticWordmesh
 
 from .utils import _get_bb_dimensions
 
-from .force_directed_model import equilibrium_positions
+from .force_directed_model import ForceDirectedModel
