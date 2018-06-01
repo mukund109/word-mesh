@@ -11,7 +11,7 @@ import os
 #print(os.path.join(os.path.dirname(os.getcwd()), 'wordmesh'))
 sys.path.append(os.path.join(os.path.dirname(os.getcwd()), 'wordmesh'))
 
-from wordmesh import StaticWordmesh, equilibrium_positions
+from wordmesh import StaticWordmesh
 import unittest
 
 with open('sample_text.txt') as f:
@@ -22,7 +22,10 @@ class TestWordmesh(unittest.TestCase):
     
     def test_static_default_constructor(self):
         wm = StaticWordmesh(test_text)
-        self.assertEqual(['planet', 'ground', 'countdown', 'knows', 'tom'], 
+        self.assertEqual(['stories', 'hall', 'hours', 'dystopias', 'close',
+                          'new mother', 'mrs', 'feel', 'sexuality',
+                          'eliciting deep', 'indulgence despite', 'woman',
+                          'turning', 'wild', 'goes', 'crafting compelling'], 
                          wm.keywords)
         
 if __name__ == '__main__':

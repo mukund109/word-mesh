@@ -9,11 +9,11 @@ import gensim
 from utils import cooccurence_similarity_matrix as csm
 import numpy as np
 from sklearn.manifold import MDS
-from utils import _save_wordmesh_as_html, _get_bb_dimensions
+from utils import _save_wordmesh_as_html, _get_bb_dimensions, _get_mpl_figure
 from force_directed_model import equilibrium_positions
 
 class StaticWordmesh():
-    def __init__(self, text, dimensions=(100, 100),
+    def __init__(self, text, dimensions=(500, 900),
                  keyword_extractor='textrank', lemmatize=True,
                  pos_filter=('NN', 'JJ', 'RB', 'VB')):
              
@@ -117,7 +117,7 @@ class StaticWordmesh():
         """
         
         if by=='scores' and directly_proportional:
-            self.fontsizes_norm = self.scores/self.scores.max()
+            self.fontsizes_norm = self.scores/self.scores.sum()
             
         else:
             raise NotImplementedError()
@@ -207,16 +207,43 @@ class StaticWordmesh():
         return self.similarity_matrix
     
     
-    def _generate_embeddings(self):
+    def _generate_embeddings(self, store_as_attribute=True):
         mds = MDS(2, dissimilarity='precomputed').\
                              fit_transform(self.similarity_matrix)
-        bbd = _get_bb_dimensions(self.keywords, self.fontsizes_norm*100)
+                             
+        bbd, real_fontsizes = _get_bb_dimensions(self.keywords, self.fontsizes_norm,
+                             self.resolution[0], self.resolution[1])
         
-        self.embeddings = equilibrium_positions(mds, bbd)
+        
+        embeddings = equilibrium_positions(mds, bbd)
+        if store_as_attribute:
+            self.embeddings = embeddings
+            self._bounding_box_width_height = bbd
+            self._fontsizes_real = real_fontsizes
+            self._mds = mds
+        
+        return embeddings
+        
+    def _get_all_fditerations(self):
+        
+        return equilibrium_positions(self._mds, self._bounding_box_width_height, True)
 
     def save_as_html(self, force_directed_animation=False):
         """
         Temporary
         """  
-        _save_wordmesh_as_html(self.embeddings, self.keywords, 
-                               self.fontsizes_norm*100, True)
+        if force_directed_animation:
+            all_positions = self._get_all_fditerations()
+            _save_wordmesh_as_html(all_positions, self.keywords, 
+                                   self._fontsizes_real, self.resolution[0], self.resolution[1], True)
+        else:
+            _save_wordmesh_as_html(self.embeddings, self.keywords, 
+                                   self._fontsizes_real, self.resolution[0], self.resolution[1])
+    def get_mpl_figure(self):
+        #embeddings = self._generate_embeddings(backend='mpl',
+        #                                       store_as_attribute=False)
+        #fig = _get_mpl_figure(embeddings, self.keywords, 
+        #                      self.fontsizes_norm*100)
+        #return fig, embeddings 
+        raise NotImplementedError()
+        

@@ -36,7 +36,9 @@ def _fv_attraction(point, other_points, multiplier=1,
     else:
         force_vectors = (multiplier*x_component, multiplier*y_component)
     
-    return force_vectors
+    #normalised to account for variable number of keywords
+    normalised_fvectors = force_vectors/(other_points.shape[0]+1)
+    return normalised_fvectors
 
 def _fv_collision(point, box_size, other_points, other_box_sizes, multiplier=20):
     """
@@ -136,7 +138,8 @@ def _update_positions(current_positions, bounding_box_dimensions, simplices,
                          
     return updated_positions
         
-def equilibrium_positions(current_positions, bounding_box_dimensions):
+def equilibrium_positions(current_positions, bounding_box_dimensions, 
+                          all_iterations=False):
     """
     The equilibrium positions are calculated by applying the force directed 
     algorithm on the particles surrounded by the given bounding boxes
@@ -151,28 +154,58 @@ def equilibrium_positions(current_positions, bounding_box_dimensions):
     bounding_box_dimensions: numpy array
         A 2-D numpy array of shape (num_particles, 2), giving the height and
         width of each bounding box
+        
+    all_iterations: bool, optional
+        If you want all the positions that the algorithm iterated through to
+        get to the equilibrium position, you can set this to True. This can be
+        helpful in visualizing the force-directed algorithm
     
     Returns
     -------
     
     numpy array:
-        A 2-D numpy array of shape (num_particles, 2) containing the x and y
-        coordinates of the equilibrium positions of the particles
+        If 'all_iterations' is False: A 2-D numpy array of shape 
+        (num_particles, 2) containing the x and y coordinates of the equilibrium
+        positions of the particles
+        
+        If 'all_iterations' is True: A 3-D numpy array of shape
+        (num_iterations, num_particles, 2)
     """
     positions = current_positions.copy()
     simplices = Delaunay(positions).simplices
     
     #initial descent rate is a fraction of the distance between the centre and
-    #furthest point, this was decided by trial and error
+    #furthest point divided by the average bounding box area.
+    #this was decided by trial and error
+    avg_bb_area = (bounding_box_dimensions[:,0]*bounding_box_dimensions[:,1]).mean()
     max_radial_distance = np.max(np.sum(positions**2, axis=1)**(1/2))
-    initial_dr = max_radial_distance/35000    
+    initial_dr = max_radial_distance/(100*avg_bb_area**(1/2))  
     
-    
-    for i in range(100):
+    all_positions = [positions]
+    for i in range(50):
         positions = _update_positions(positions, bounding_box_dimensions,
-                                      simplices, initial_dr*(1-i/100))
+                                      simplices, initial_dr*(1-i/50))
+
+        all_positions.append(positions)
         
-    return positions
+    #all positions are then centered around the origin
+    all_centered_positions = []
+    for position in all_positions:
+        x_left = (position[:, 0]-bounding_box_dimensions[:,0]/2).min()
+        x_right = (position[:, 0]+bounding_box_dimensions[:,0]/2).max()
+        y_bottom = (position[:, 1]-bounding_box_dimensions[:,1]/2).min()
+        y_top = (position[:, 1]+bounding_box_dimensions[:,1]/2).max()
+        
+        centered_position = position.copy()
+        centered_position[:, 0] = position[:, 0] - (x_right+x_left)/2
+        centered_position[:, 1] = position[:, 1] - (y_top+y_bottom)/2  
+        
+        all_centered_positions.append(centered_position)
+    
+    
+    if all_iterations:
+        return np.stack(all_centered_positions)
+    return all_centered_positions[-1]
 
 
     
