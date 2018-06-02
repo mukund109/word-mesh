@@ -69,13 +69,18 @@ def _fv_collision(point, box_size, other_points, other_box_sizes, multiplier=20)
     
     return force_vector  
 
-def _delaunay_force(point_index, coordinates, simplices, multiplier=30):
-        
+def _delaunay_force(point_index, current_positions, simplices, initial_positions, multiplier=30):
+    
     #get simplices which contain said point
+    
+    
     mask = np.any(simplices==point_index, axis=1)
-    line_segs = coordinates[simplices[mask]].reshape(-1, 2)
-    line_segs = line_segs[~(line_segs== coordinates[point_index])].reshape(-1,4)
+    line_segs = current_positions[simplices[mask]].reshape(-1, 2)
+    line_segs = line_segs[~(line_segs== current_positions[point_index])].reshape(-1,4)
 
+    initial_line_segs = initial_positions[simplices[mask]].reshape(-1, 2)
+    initial_line_segs = initial_line_segs[~(initial_line_segs== initial_positions[point_index])].reshape(-1,4)
+    
     #find points at which given point bisects the triangle side opposite to it
     
     x1 = line_segs[:, 0]
@@ -83,15 +88,30 @@ def _delaunay_force(point_index, coordinates, simplices, multiplier=30):
     x2 = line_segs[:, 2]
     y2 = line_segs[:, 3]
     
-    xp, yp = coordinates[point_index]
+    xp, yp = current_positions[point_index]
     m = (y2-y1)/(x2-x1)
-    
+    mp = (yp-y1)/(xp-x1)
     
     X = (m*(yp-y1) + (m**2)*x1 + xp)/(m**2 + 1)
     Y = (y1 + m*(xp-x1) + (m**2)*yp)/(m**2 + 1)
     
+    #initial slopes
+    x1_i = initial_line_segs[:, 0]
+    y1_i = initial_line_segs[:, 1]
+    x2_i = initial_line_segs[:, 2]
+    y2_i = initial_line_segs[:, 3] 
+    
+    m_i = (y2_i-y1_i)/(x2_i-x1_i)
+    
+    xp_i, yp_i = initial_positions[point_index]
+    mp_i = (yp_i-y1_i)/(xp_i-x1_i)
+    
+    #Calculate sign of force
+    sign = np.sign(m-mp)*np.sign(m_i-mp_i)
+    sign = np.repeat(sign[:, np.newaxis], 2, axis=1)
     # find the force due to these
-    force_vector = -_fv_attraction(coordinates[point_index], 
+    #force vector = sign * force of repulsion
+    force_vector = sign*(-1)*_fv_attraction(current_positions[point_index], 
                                    np.stack([X,Y]).swapaxes(0,1),
                                            multiplier, True)
     
@@ -99,7 +119,7 @@ def _delaunay_force(point_index, coordinates, simplices, multiplier=30):
 
 
 def _update_positions(current_positions, bounding_box_dimensions, simplices, 
-                      descent_rate):
+                      initial_positions, descent_rate):
     """
     Performs a single iteration of force directed displacement for every word
     """
@@ -121,7 +141,7 @@ def _update_positions(current_positions, bounding_box_dimensions, simplices,
         aforce = _fv_attraction(this_particle, other_particles)
         cforce = _fv_collision(this_particle, this_bbd, other_particles, 
                                other_bbds)
-        dforce = _delaunay_force(i, updated_positions, simplices)
+        dforce = _delaunay_force(i, updated_positions, simplices, initial_positions)
         
         total_force = np.sum(cforce+aforce, axis=0) + np.sum(dforce, axis=0)
         
@@ -196,11 +216,11 @@ class ForceDirectedModel():
         #this was decided by trial and error
         avg_bb_area = (bbd[:,0]*bbd[:,1]).mean()
         max_radial_distance = np.max(np.sum(position_i**2, axis=1)**(1/2))
-        initial_dr = max_radial_distance/(100*avg_bb_area**(1/2))  
+        initial_dr = max_radial_distance/(500*avg_bb_area**(1/2))  
         
         for i in range(self.num_iters):
-            position_i = _update_positions(position_i, bbd, simplices, 
-                                           initial_dr*(1-i/self.num_iters))
+            position_i = _update_positions(position_i, bbd, simplices, self.initial_positions,
+                                           initial_dr*(1))#-i/self.num_iters))
             all_positions[i] = position_i
             
         return all_positions

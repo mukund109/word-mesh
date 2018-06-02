@@ -9,7 +9,7 @@ import gensim
 from utils import cooccurence_similarity_matrix as csm
 import numpy as np
 from sklearn.manifold import MDS
-from utils import _save_wordmesh_as_html, _get_bb_dimensions, _get_mpl_figure
+from utils import PlotlyVisualizer
 from force_directed_model import ForceDirectedModel
 
 class StaticWordmesh():
@@ -156,10 +156,11 @@ class StaticWordmesh():
         """
         
         if by=='random':
-            rnd = lambda x: int(np.random.randint(0, 140))
-            colors = [(230, 110+rnd(0),
-                       110+rnd(0)) for i in range(len(self.keywords))]
-            self.fontcolors = np.array(colors)
+#            rnd = lambda x: int(np.random.randint(0, 140))
+#            colors = [(230, 110+rnd(0),
+#                       110+rnd(0)) for i in range(len(self.keywords))]
+#            self.fontcolors = np.array(colors)
+             self.fontcolors = 'white'
             
         else:
             raise NotImplementedError()
@@ -210,9 +211,14 @@ class StaticWordmesh():
     def _generate_embeddings(self, store_as_attribute=True):
         mds = MDS(2, dissimilarity='precomputed').\
                              fit_transform(self.similarity_matrix)
-                             
-        bbd, real_fontsizes = _get_bb_dimensions(self.keywords, self.fontsizes_norm,
-                             self.resolution[0], self.resolution[1])
+                           
+        self._visualizer = PlotlyVisualizer(words = self.keywords,
+                                            fontsizes_norm =self.fontsizes_norm, 
+                                            height = self.resolution[0],
+                                            width = self.resolution[1], 
+                                            textcolors=self.fontcolors)
+        
+        bbd = self._visualizer.bounding_box_dimensions
         
         
         fdm = ForceDirectedModel(mds, bbd, num_iters=100)
@@ -221,7 +227,6 @@ class StaticWordmesh():
         if store_as_attribute:
             self.embeddings = fdm.equilibrium_position()
             self._bounding_box_width_height = bbd
-            self._fontsizes_real = real_fontsizes
             self._mds = mds
         
         return fdm.equilibrium_position()
@@ -243,15 +248,12 @@ class StaticWordmesh():
         """
         Temporary
         """  
-        height, width = self.resolution[0], self.resolution[1]
         if force_directed_animation:
             all_positions = self._get_all_fditerations()
-            _save_wordmesh_as_html(all_positions, self.keywords, 
-                                   self._fontsizes_real, height, width, filename, animate=True)
+            self._visualizer.save_wordmesh_as_html(all_positions, filename, 
+                                                   animate=True)
         else:
-            _save_wordmesh_as_html(self.embeddings, self.keywords, 
-                                   self._fontsizes_real, height, width,
-                                   filename, textcolors=self.fontcolors)
+            self._visualizer.save_wordmesh_as_html(self.embeddings, filename)
             
     def get_mpl_figure(self):
         #embeddings = self._generate_embeddings(backend='mpl',

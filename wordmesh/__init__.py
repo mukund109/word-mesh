@@ -7,6 +7,6 @@ Created on Sun May 27 20:38:01 2018
 """
 from .static_wordmesh import StaticWordmesh
 
-from .utils import _get_bb_dimensions
+from .utils import PlotlyVisualizer
 
 from .force_directed_model import ForceDirectedModel
