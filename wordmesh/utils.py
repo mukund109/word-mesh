@@ -5,6 +5,7 @@ Created on Mon May 28 04:26:25 2018
 
 @author: mukund
 """
+
 import numpy as np
 import os
 import nltk
@@ -36,7 +37,7 @@ class PlotlyVisualizer():
                  filename='temp-plot.html', title=None, textcolors='white',
                  hovertext=None, axis_visible=False, bg_color='black', 
                  title_fontcolor='white', title_fontsize='auto', 
-                 title_font_family='Courier New, monospace', bb_padding=0.1):
+                 title_font_family='Courier New, monospace', bb_padding=0.05):
         
         """
         Parameters
@@ -59,12 +60,16 @@ class PlotlyVisualizer():
         
         
 # fontsize*FONTSIZE_BBW = Width of the bounding box of each character in a plotly graph
-    def _get_extent(coordinates, bbd):
-        x_left = np.min((coordinates[:, 0]-bbd[:,0]/2), axis=1)
-        x_right = np.max((coordinates[:, 0]+bbd[:,:,0]/2), axis=1)
-        y_bottom = np.min((coordinates[:, 1]-bbd[:,1]/2), axis=1)
-        y_top = np.max((coordinates[:,1]+bbd[:,1]/2), axis=1)
-        return x_left, x_right, y_bottom, y_top
+    def _get_zoom(self, coordinates):
+        bbd = self.bounding_box_dimensions
+        
+        x_left = np.min((coordinates[:, 0]-bbd[:,0]/2))
+        x_right = np.max((coordinates[:, 0]+bbd[:,0]/2))
+        y_bottom = np.min((coordinates[:, 1]-bbd[:,1]/2))
+        y_top = np.max((coordinates[:,1]+bbd[:,1]/2))
+        
+        zoom = max((x_right-x_left)/self.width, (y_top-y_bottom)/self.height)
+        return zoom
     
     def get_bb_dimensions(self):
     
@@ -79,13 +84,14 @@ class PlotlyVisualizer():
         current_area_per_word = ((self.fontsizes_norm**2)*num_chars).sum()
     
         prop_factor = ideal_area_per_word/current_area_per_word
-        square_side_length = self.fontsizes_norm*(prop_factor**(1/2))*3
+        square_side_length = self.fontsizes_norm*(prop_factor**(1/2))*4
         
         bb_widths = (0.6+self.padding)*square_side_length*num_chars
-        bb_heights = (0.972+0.088+self.padding)*square_side_length
+        bb_heights = (0.972+0.088+self.padding*2)*square_side_length
+                     
         return np.array([bb_widths, bb_heights]).swapaxes(0, 1), square_side_length
     
-    def _get_layout(self, labels=[]):
+    def _get_layout(self, labels=[], zoom=1):
         
         steps = []
         for label in labels:
@@ -102,14 +108,15 @@ class PlotlyVisualizer():
                 'width':self.width,
                 'titlefont':{'color':self.title_fontcolor, 
                         'size':self.title_fontsize},
-                'paper_bgcolor':self.bg_color,
+                #'paper_bgcolor':self.bg_color,
+                'paper_bgcolor':'white',
                 'plot_bgcolor':self.bg_color, 
-                'xaxis': {'range': [-self.width/2, self.width/2], 
+                'xaxis': {'range': [-self.width*zoom/2, self.width*zoom/2], 
                           'autorange': False, 
                           'visible':self.axis_visible, 
                           'autotick':False, 
                           'dtick':10},
-                'yaxis': {'range': [-self.height/2, self.height/2], 
+                'yaxis': {'range': [-self.height*zoom/2, self.height*zoom/2], 
                           'autorange': False, 
                           'visible':self.axis_visible, 
                           'autotick':False, 
@@ -130,7 +137,7 @@ class PlotlyVisualizer():
     
     def _get_trace(self, coordinates, 
                   textfonts="Courier New, monospace", marker_opacity=0, 
-                  showlegend=False, legendgroup='default_legend'):
+                  showlegend=False, legendgroup='default_legend', zoom=1):
         
         coordinates = np.array(coordinates) 
         
@@ -163,7 +170,7 @@ class PlotlyVisualizer():
                     text = self.words,
                     textposition = 'centre',
                     textfont = dict(family = "Courier New, monospace",
-                                    size = self.real_fontsizes,
+                                    size = self.real_fontsizes*(1/zoom),
                                     color = self.textcolors)
                 )
         
@@ -178,40 +185,29 @@ class PlotlyVisualizer():
         
         return figure
     
-    def save_wordmesh_as_html(self, coordinates, filename='temp-plot.html', animate=False):
-        
+    def save_wordmesh_as_html(self, coordinates, filename='temp-plot.html', 
+                              animate=False, autozoom=True):
+
+        zoom = 1
         labels = ['default label']
         traces = []
         if animate:
             for i in range(coordinates.shape[0]):
+                
                 traces.append(self._get_trace(coordinates[i]))
                 labels = list(map(str,range(coordinates.shape[0])))
                 
         else:
-            traces = [self._get_trace(coordinates)]
+
+            if autozoom:
+                zoom = self._get_zoom(coordinates)
+            traces = [self._get_trace(coordinates, zoom=zoom)]
             
-        layout = self._get_layout(labels)
+        layout = self._get_layout(labels, zoom=zoom)
             
         fig = self.generate_figure(traces, labels, layout)
         py.plot(fig, filename=filename, auto_open=False, show_link=False)
     
-#def _get_mpl_figure(coordinates, words, fontsizes):
-#    fig, ax = plt.subplots(figsize=(10,10))
-#    
-#    bbd = _get_bb_dimensions(words, fontsizes, backend='mpl')
-#    bbd = np.flip(bbd, 1)
-#    
-#    range_max = (np.abs(coordinates)+bbd/2).max()
-#
-#    ax.set_xlim(left = -range_max, right = range_max)
-#    ax.set_ylim(bottom = -range_max, top = range_max)
-#    fontsizes = fontsizes/range_max
-#    
-#    for i,word in enumerate(words):
-#        ax.text(coordinates[i][0], coordinates[i][1], word, 
-#                dict(fontsize=fontsizes[i], family='monospace'),
-#                    horizontalalignment='center', verticalalignment='center')
-#    return fig
 
 def _cooccurence_score(text, word1, word2): 
     text, word1, word2 = text.lower(), word1.lower(), word2.lower()
@@ -223,7 +219,7 @@ def _cooccurence_score(text, word1, word2):
         for j in l2:
             square_sum = square_sum + (i-j)**2
 
-    return (square_sum**(1/2))/(len(l1)*len(l2))
+    return (square_sum**(1/2))/(len(l1)*len(l2)+1)
 
 def _find_all(text, substring):
     loc = text.find(substring)
@@ -238,27 +234,3 @@ def cooccurence_similarity_matrix(text, wordlist):
     vscore_func = np.vectorize(score_func)
     return np.fromfunction(vscore_func, shape=[len(wordlist)]*2)
 
-#def _save_wordmesh_as_html(coordinates, words, fontsizes, height, width, 
-#                           filename='temp-plot.html',
-#                           title=None, textcolors='white', 
-#                           hovertext=None, axis_visible=False, bg_color='black',
-#                           title_font_color='white', title_font_size='auto', 
-#                           title_font_family='Courier New, monospace', 
-#                           animate=False):
-#    
-#    labels = ['default label']
-#    traces = []
-#    if animate:
-#        for i in range(coordinates.shape[0]):
-#            traces.append(get_trace(coordinates[i], words, fontsizes, 
-#                                    textcolors, hovertext=hovertext))
-#            labels = list(map(str,range(coordinates.shape[0])))
-#            
-#    else:
-#        traces = [get_trace(coordinates, words, fontsizes)]
-#        
-#    layout = get_layout(height, width, labels, title, axis_visible, bg_color, 
-#                        title_font_color, title_font_size, title_font_family)
-#        
-#    fig = generate_figure(traces, labels, layout)
-#    py.plot(fig, filename=filename, auto_open=False, show_link=False)

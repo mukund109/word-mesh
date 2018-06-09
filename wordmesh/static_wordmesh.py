@@ -5,17 +5,19 @@ Created on Sun May 27 02:20:39 2018
 
 @author: mukund
 """
-import gensim
+from text_processing import extract_terms_by_frequency, extract_terms_by_score
 from utils import cooccurence_similarity_matrix as csm
 import numpy as np
 from sklearn.manifold import MDS
 from utils import PlotlyVisualizer
 from force_directed_model import ForceDirectedModel
+import colorlover as cl
 
 class StaticWordmesh():
     def __init__(self, text, dimensions=(500, 900),
-                 keyword_extractor='textrank', lemmatize=True,
-                 pos_filter=('NN', 'JJ', 'RB', 'VB')):
+                 keyword_extractor='textrank', num_keywords=15,
+                 lemmatize=True, pos_filter=['NOUN','ADJ','PROPN'], 
+                 extract_ngrams=True, filter_numbers=True):
              
         """Word mesh object for generating and drawing STATIC 
         wordmeshes/wordclouds.
@@ -29,15 +31,16 @@ class StaticWordmesh():
             The desired dimensions (height, width) of the wordcloud in pixels
             
         keyword_extractor : string, optional
-            You can choose one from the following: ['textrank']
+            You can choose one from the following: ['textrank', 'sgrank', 'tf']
             
         lemmatize : bool, optional
             Whether the text needs to be lemmatized before keywords are
             extracted from it
             
         pos_filter : tuple, optional
-            A POS filter can be applied on the keywords. By default, only nouns,
-            adjectives, adverbs and verbs can be keywords.
+            A POS filter can be applied on the keywords ONLY when the 
+            keyword_extractor has been set to 'tf'. By default, only nouns,
+            adjectives and proper nouns can be keywords.
             More more information on the tags used, visit:
             https://www.clips.uantwerpen.be/pages/mbsp-tags
             
@@ -49,36 +52,32 @@ class StaticWordmesh():
         """
         
         self.text = text
-        self.extractor = keyword_extractor
         self.dimension_ratio = dimensions[0]/float(dimensions[1])
         self.resolution = dimensions
-        self.lemmatize = True
+        self.lemmatize = lemmatize
         self.keyword_extractor = keyword_extractor
         self.pos_filter = pos_filter
+        self.extract_ngrams = extract_ngrams
+        self.num_keywords = num_keywords
+        self.filter_numbers = filter_numbers
         self._extract_keywords()
         self.set_fontsize()
         self.set_fontcolor()
         self.set_clustering_criteria()
 
     def _extract_keywords(self):
-        self.keywords = []
-        scores = []
-        word_scores = None
-        
-        
-        if self.keyword_extractor == 'textrank':
-            word_scores = gensim.summarization.keywords(self.text, split=True, 
-                                                    scores=True, 
-                                                    lemmatize=self.lemmatize,
-                                                    pos_filter=self.pos_filter)
-        else:
-            raise NotImplementedError("Only 'textrank' has been implemented")
+
+        if self.keyword_extractor == 'tf':
             
-        for word_score in word_scores:
-            self.keywords.append(word_score[0])
-            scores.append(word_score[1])
-        
-        self.scores = np.array(scores)
+            self.keywords, self.scores, self.pos_tags = \
+            extract_terms_by_frequency(self.text, self.num_keywords, 
+                                       self.pos_filter, self.filter_numbers, 
+                                       self.extract_ngrams)
+        else:
+            self.keywords, self.scores, self.pos_tags = \
+            extract_terms_by_score(self.text, self.keyword_extractor,
+                                   self.num_keywords, self.extract_ngrams)
+            
 
     def set_fontsize(self, by='scores', custom_sizes=None, 
                      directly_proportional=True):
@@ -156,11 +155,10 @@ class StaticWordmesh():
         """
         
         if by=='random':
-#            rnd = lambda x: int(np.random.randint(0, 140))
-#            colors = [(230, 110+rnd(0),
-#                       110+rnd(0)) for i in range(len(self.keywords))]
-#            self.fontcolors = np.array(colors)
-             self.fontcolors = 'white'
+            tone = np.random.choice(list(cl.flipper()['seq']['3'].keys()))
+            self.fontcolors = np.random.choice(list(cl.flipper()['seq']\
+                                                    ['3'][tone]), 
+                                                    len(self.keywords))
             
         else:
             raise NotImplementedError()

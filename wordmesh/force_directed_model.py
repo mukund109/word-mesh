@@ -8,9 +8,11 @@ Created on Mon May 28 17:30:38 2018
 
 import numpy as np
 from scipy.spatial import Delaunay
+from scipy.spatial.distance import pdist
+import random
 
 def _fv_attraction(point, other_points, multiplier=1, 
-                   inverse_distance_proportionality=False):
+                   inverse_distance_proportionality=False, normalised=False):
     
     """
     other_points can be a single point or an ndarray with shape: (num_points, 2)
@@ -22,18 +24,20 @@ def _fv_attraction(point, other_points, multiplier=1,
     x_component = (x2-x1)
     y_component = (y2-y1)
     
+
     if inverse_distance_proportionality:
-        x_component = x_component/d
-        y_component = y_component/d
+        x_component = x_component/(d+1)
+        y_component = y_component/(d+1)
     
     force_vectors = np.asarray([multiplier*x_component, multiplier*y_component]).swapaxes(0,1)
     
     #normalised to account for variable number of keywords
-    normalised_fvectors = force_vectors/(other_points.shape[0]+1)
+    if normalised:
+        force_vectors = force_vectors/(other_points.shape[0]+1)
     
-    return normalised_fvectors
+    return force_vectors
 
-def _fv_collision(point, box_size, other_points, other_box_sizes, multiplier=20):
+def _fv_collision(point, box_size, other_points, other_box_sizes, multiplier=1.5):
     """
     box_size = (width, height)
     other_box_sizes shape = (num_points, 2)
@@ -69,7 +73,7 @@ def _fv_collision(point, box_size, other_points, other_box_sizes, multiplier=20)
     
     return force_vector  
 
-def _delaunay_force(point_index, current_positions, simplices, initial_positions, multiplier=30):
+def _delaunay_force(point_index, current_positions, simplices, initial_positions, multiplier=10):
     
     #get simplices which contain said point
     
@@ -119,17 +123,17 @@ def _delaunay_force(point_index, current_positions, simplices, initial_positions
 
 
 def _update_positions(current_positions, bounding_box_dimensions, simplices, 
-                      initial_positions, descent_rate):
+                      initial_positions, descent_rate, momentum=None):
     """
     Performs a single iteration of force directed displacement for every word
     """
     updated_positions = current_positions.copy()
-
     bbd = bounding_box_dimensions
-    
     num_particles = current_positions.shape[0]
     
-    for i in range(num_particles):
+    force_memory = np.ndarray(shape=(num_particles, 2))
+    
+    for i in random.sample(list(range(num_particles)), num_particles):
         
         this_particle = updated_positions[i]
         other_particles = updated_positions[~(np.arange(num_particles)==i)]
@@ -138,18 +142,22 @@ def _update_positions(current_positions, bounding_box_dimensions, simplices,
         other_bbds = bbd[~(np.arange(num_particles)==i)]
         
         #Calculates all three forces on ith particle due to all other particles
-        aforce = _fv_attraction(this_particle, other_particles)
+        aforce = _fv_attraction(this_particle, other_particles, normalised=True)
         cforce = _fv_collision(this_particle, this_bbd, other_particles, 
                                other_bbds)
         dforce = _delaunay_force(i, updated_positions, simplices, initial_positions)
         
         total_force = np.sum(cforce+aforce, axis=0) + np.sum(dforce, axis=0)
         
+        if momentum is not None:
+            total_force = total_force + momentum[i]
+            
         #updated_position = current_position + alpha*force
         #Not exactly Newtonian but works
         updated_positions[i] = updated_positions[i] + descent_rate*total_force
+        force_memory[i] = total_force
                          
-    return updated_positions
+    return updated_positions, force_memory
         
 class ForceDirectedModel():
     
@@ -209,18 +217,20 @@ class ForceDirectedModel():
         simplices = self.simplices
         bbd = self.bounding_box_dimensions
         
+        
         all_positions = np.ndarray(shape=(self.num_iters, self.num_particles, 2))
         
-        #initial descent rate is a fraction of the distance between the centre and
-        #furthest point divided by the average bounding box area.
-        #this was decided by trial and error
-        avg_bb_area = (bbd[:,0]*bbd[:,1]).mean()
-        max_radial_distance = np.max(np.sum(position_i**2, axis=1)**(1/2))
-        initial_dr = max_radial_distance/(500*avg_bb_area**(1/2))  
+        #make it a function of max radial distance or something
+        avg_dist = pdist(position_i).sum(0).sum()/(self.num_particles**2)
+        initial_dr = avg_dist/(150*self.num_iters)
+        
+        force_memory = np.zeros((self.num_particles, 2))
         
         for i in range(self.num_iters):
-            position_i = _update_positions(position_i, bbd, simplices, self.initial_positions,
-                                           initial_dr*(1))#-i/self.num_iters))
+            position_i, force_memory = _update_positions(position_i, 
+                                                         bbd, simplices, 
+                                                         self.initial_positions,
+                                                         initial_dr*(1-i/self.num_iters))#))
             all_positions[i] = position_i
             
         return all_positions

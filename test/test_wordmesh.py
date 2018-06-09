@@ -30,7 +30,7 @@ class TestWordmesh(unittest.TestCase):
         
 if __name__ == '__main__':
     #unittest.main()
-    wm = StaticWordmesh(test_text, pos_filter=('JJ'))
+    wm = StaticWordmesh(test_text, (900,1500))
     print(wm.keywords)
         
         
