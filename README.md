@@ -13,5 +13,5 @@ Most popular open-source wordcloud generators ([word_cloud](https://github.com/a
 
 ## Examples
 
-![Sample](examples/wordmesh_risk.png?raw=true = 300x500)
+![wordmesh_risk](examples/wordmesh_risk.png)
 
