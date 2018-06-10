@@ -37,7 +37,7 @@ def _fv_attraction(point, other_points, multiplier=1,
     
     return force_vectors
 
-def _fv_collision(point, box_size, other_points, other_box_sizes, multiplier=1.5):
+def _fv_collision(point, box_size, other_points, other_box_sizes, multiplier=2):
     """
     box_size = (width, height)
     other_box_sizes shape = (num_points, 2)
@@ -73,7 +73,7 @@ def _fv_collision(point, box_size, other_points, other_box_sizes, multiplier=1.5
     
     return force_vector  
 
-def _delaunay_force(point_index, current_positions, simplices, initial_positions, multiplier=10):
+def _delaunay_force(point_index, current_positions, simplices, initial_positions, multiplier=3):
     
     #get simplices which contain said point
     
@@ -230,7 +230,7 @@ class ForceDirectedModel():
             position_i, force_memory = _update_positions(position_i, 
                                                          bbd, simplices, 
                                                          self.initial_positions,
-                                                         initial_dr*(1-i/self.num_iters))#))
+                                                         initial_dr*(1-i*i/(self.num_iters*self.num_iters)))#))
             all_positions[i] = position_i
             
         return all_positions

@@ -80,7 +80,7 @@ class StaticWordmesh():
             
 
     def set_fontsize(self, by='scores', custom_sizes=None, 
-                     directly_proportional=True):
+                     directly_proportional=True, regularization_factor=3):
         """
         This function can be used to pick a metric which decides the font size
         for each extracted keyword. By default, the font size is directly 
@@ -105,6 +105,10 @@ class StaticWordmesh():
         directly_proportional : bool, optional
             Controls whether font sizes are directly or inversely proportional
             to the value of the chosen metric
+        regularization_factor : int, optional
+            Determines the ratio max(fontsizes)/min(fontsizes). Fontsizes are
+            scaled linearly so as to achieve this ratio. This helps prevent 
+            extreme values.
             
         Returns
         -------
@@ -120,6 +124,17 @@ class StaticWordmesh():
             
         else:
             raise NotImplementedError()
+            
+        #applying regularization
+        k = regularization_factor
+        mx = self.fontsizes_norm.max()
+        mn = self.fontsizes_norm.min()
+        
+        a = mx*(k-1)/((mx-mn)*k)
+        b = mx*(mx-mn*k)/((mx-mn)*k)
+        
+        self.fontsizes_norm = a*self.fontsizes_norm + b
+        self.fontsizes_norm = self.fontsizes_norm/self.fontsizes_norm.sum()
             
         return self.fontsizes_norm
             
@@ -217,7 +232,6 @@ class StaticWordmesh():
                                             textcolors=self.fontcolors)
         
         bbd = self._visualizer.bounding_box_dimensions
-        
         
         fdm = ForceDirectedModel(mds, bbd, num_iters=100)
         self.force_directed_model = fdm

@@ -7,17 +7,17 @@ Created on Mon May 28 04:26:25 2018
 """
 
 import numpy as np
-import os
-import nltk
+#import os
+#import nltk
 import plotly.offline as py
 import plotly.graph_objs as go
 import matplotlib.pyplot as plt
 plt.ioff()
 
-current_path = os.path.dirname(__file__)
-if not (os.path.isdir(os.path.join(current_path, 'tokenizers'))):
-    print('Downloading nltk resource required for POS tagging...')
-    nltk.download('punkt', download_dir=current_path, quiet=True)
+#current_path = os.path.dirname(__file__)
+#if not (os.path.isdir(os.path.join(current_path, 'tokenizers'))):
+#    print('Downloading nltk resource required for POS tagging...')
+#    nltk.download('punkt', download_dir=current_path, quiet=True)
 
 
 
