@@ -5,7 +5,7 @@ Created on Sun May 27 02:20:39 2018
 
 @author: mukund
 """
-from text_processing import extract_terms_by_frequency, extract_terms_by_score
+from text_processing import extract_terms_by_frequency, extract_terms_by_score, normalize_text
 from utils import cooccurence_similarity_matrix as csm
 import numpy as np
 from sklearn.manifold import MDS
@@ -13,46 +13,55 @@ from utils import PlotlyVisualizer
 from force_directed_model import ForceDirectedModel
 import colorlover as cl
 
-class StaticWordmesh():
+class Wordmesh():
     def __init__(self, text, dimensions=(500, 900),
-                 keyword_extractor='textrank', num_keywords=15,
+                 keyword_extractor='textrank', num_keywords=35,
                  lemmatize=True, pos_filter=['NOUN','ADJ','PROPN'], 
                  extract_ngrams=True, filter_numbers=True):
              
-        """Word mesh object for generating and drawing STATIC 
-        wordmeshes/wordclouds.
+        """Wordmesh object for generating and drawing wordmeshes/wordclouds.
         
         Parameters
         ----------
         text : string
-            The string of text that needs to be summarized
+            The string of text that needs to be summarized.
             
         dimensions : tuple, optional 
-            The desired dimensions (height, width) of the wordcloud in pixels
+            The desired dimensions (height, width) of the wordcloud in pixels.
             
-        keyword_extractor : string, optional
-            You can choose one from the following: ['textrank', 'sgrank', 'tf']
+        keyword_extractor : {'textrank', 'sgrank', 'divrank', 'bestcoverage', 'tf'}, optional
+            The algorithm used for keyword extraction. 'tf' refers to simple
+            term frequency based extraction.
+            
+        num_keywords : int, optional
+            The number of keywords to be extracted from the text. In some cases,
+            if the text length is too short, fewer keywords might
+            be extracted without a warning being raised.
             
         lemmatize : bool, optional
             Whether the text needs to be lemmatized before keywords are
             extracted from it
             
-        pos_filter : tuple, optional
+        pos_filter : list of str, optional
+            Supported pos tags-{'NOUN','PROPN','ADJ','VERB','ADV','SYM',PUNCT'}.
             A POS filter can be applied on the keywords ONLY when the 
-            keyword_extractor has been set to 'tf'. By default, only nouns,
-            adjectives and proper nouns can be keywords.
-            More more information on the tags used, visit:
-            https://www.clips.uantwerpen.be/pages/mbsp-tags
+            keyword_extractor has been set to 'tf'.
+            
+        extract_ngrams : bool, optional
+            Whether 2 or 3 grams should be extracted.
+        
+        filter_numbers : bool, optional
+            Whether extracted keywords can be numbers.
+            
             
         Returns
         -------
-        StaticWordMesh
+        Wordmesh
             A word mesh object 
         
         """
         
         self.text = text
-        self.dimension_ratio = dimensions[0]/float(dimensions[1])
         self.resolution = dimensions
         self.lemmatize = lemmatize
         self.keyword_extractor = keyword_extractor
@@ -69,14 +78,16 @@ class StaticWordmesh():
 
         if self.keyword_extractor == 'tf':
             
-            self.keywords, self.scores, self.pos_tags = \
+            self.keywords, self.scores, self.pos_tags, n_kw = \
             extract_terms_by_frequency(self.text, self.num_keywords, 
                                        self.pos_filter, self.filter_numbers, 
                                        self.extract_ngrams)
         else:
-            self.keywords, self.scores, self.pos_tags = \
+            self.keywords, self.scores, self.pos_tags, n_kw = \
             extract_terms_by_score(self.text, self.keyword_extractor,
                                    self.num_keywords, self.extract_ngrams)
+            
+        self.normalized_keywords = n_kw
             
 
     def set_fontsize(self, by='scores', custom_sizes=None, 
@@ -211,15 +222,18 @@ class StaticWordmesh():
             the similarity_matrix, i.e., a numpy array of shape (num_keywords, 
             num_keywords).
         """
+        self.normalized_text = normalize_text(self.text)
         if by=='cooccurence':
-            self.similarity_matrix = csm(self.text, self.keywords)
+            self.similarity_matrix = csm(self.normalized_text,
+                                         self.normalized_keywords)
             
         else:
             raise NotImplementedError()
-            
-        self._generate_embeddings()
+        
         return self.similarity_matrix
     
+    def generate_embeddings(self):
+        self._generate_embeddings()
     
     def _generate_embeddings(self, store_as_attribute=True):
         mds = MDS(2, dissimilarity='precomputed').\

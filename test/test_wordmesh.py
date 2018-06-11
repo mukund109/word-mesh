@@ -8,10 +8,9 @@ Created on Sun May 27 19:22:42 2018
 import sys
 import os
 
-#print(os.path.join(os.path.dirname(os.getcwd()), 'wordmesh'))
 sys.path.append(os.path.join(os.path.dirname(os.getcwd()), 'wordmesh'))
 
-from wordmesh import StaticWordmesh
+from wordmesh import Wordmesh
 import unittest
 
 with open('sample_text.txt') as f:
@@ -20,8 +19,8 @@ with open('sample_text.txt') as f:
 
 class TestWordmesh(unittest.TestCase):
     
-    def test_static_default_constructor(self):
-        wm = StaticWordmesh(test_text)
+    def test_default_constructor(self):
+        wm = Wordmesh(test_text)
         self.assertEqual(['stories', 'hall', 'hours', 'dystopias', 'close',
                           'new mother', 'mrs', 'feel', 'sexuality',
                           'eliciting deep', 'indulgence despite', 'woman',
@@ -30,7 +29,8 @@ class TestWordmesh(unittest.TestCase):
         
 if __name__ == '__main__':
     #unittest.main()
-    wm = StaticWordmesh(test_text, (900,1500))
+    wm = Wordmesh(test_text, pos_filter=['NOUN','ADJ','VERB','PROPN'], 
+                  keyword_extractor='tf', extract_ngrams=False)
     print(wm.keywords)
         
         

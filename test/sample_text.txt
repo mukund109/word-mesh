@@ -1,34 +1,13 @@
-Market risk refers to the risk of losses in the bank’s trading book due to changes in equity prices, interest rates, credit
-spreads, foreign-exchange rates, commodity prices, and other indicators whose values are set in a public market. To
-manage market risk, banks deploy a number of highly sophisticated mathematical and statistical techniques. Chief
-among these is value-at-risk (VAR) analysis, which over the past 15 years has become established as the industry and
-regulatory standard in measuring market risk.
-The demands placed on VAR and other similar techniques have grown tremendously, driven by new products such as
-correlation trading, multi-asset options, power-reverse dual currency swaps, swaps whose notional value amortizes
-unpredictably, and dozens of other such innovations. To keep up, the tools have evolved. For example, the number of
-risk factors required to price the trading book at a global institution has now grown to several thousand, and sometimes
-as many as 10,000. Valuation models have become increasingly complex. And most banks are now in the process of
-integrating new stress-testing analytics that can anticipate a broad spectrum of macroeconomic changes.
-Despite these accomplishments, VAR and other risk models have continually come up short. The 1998 crisis at Long
-Term Capital Management demonstrated the limitations of risk modeling. In the violent market upheavals of 2007–08,
-many banks reported more than 30 days when losses exceeded VAR, a span in which 3 to 5 such days would be the
-norm. In 2011, just before the European sovereign crisis got under way, many banks’ risk models treated eurozone
-government bonds as virtually risk free.
-Indeed, the perceived limitations of VAR are bringing the industry under severe scrutiny. As one pundit puts it: “A decade
-rarely passes without a market event that some respected economist claims, with a straight face, to be a perfect storm, a
-10-sigma event, or a catastrophe so fantastically improbable that it should not have been expected to occur in the entire
-history of the universe from the big bang onward.” 1
-In the wake of the most recent troubles, critics have noted VAR’s reliance on normal market distributions and its
-fundamental assumption that positions can be readily liquidated. Regulators have attempted to compensate for some
-of these limitations, notably through Basel II.5, a comprehensive upgrade to the market-risk framework that took effect
-in December 2011. Some new elements in the framework, such as a requirement to calculate stressed VAR, are driving
-risk-weighted assets (RWAs) higher and boosting capital requirements by a factor of two to three. 2 (Basel III will bump
-the stakes even higher, notably through the introduction of the credit-valuation adjustment (CVA), which measures the
-market risk in OTC derivatives from counterparty credit spreads.)
-The imposition of higher capital requirements may make the financial system safer, but from a modeling perspective this
-is a fairly blunt instrument. The ongoing refinements in stress testing are a welcome complement to the main work on
-VAR, but almost all banks would agree that risk models need more work. Banks are curious about the design choices
-entailed in simulation and valuation; they are probing for the right balance between sophistication and accuracy, on the
-one hand, and simplicity, transparency, and speed on the other. Having high-quality market data turns out to be just as
-critical as the models themselves, but many banks are uncertain about where to draw the line between acceptable and
-unacceptable levels of quality.
+Law is a word that means different things at different times. Black’s Law Dictionary says that law is “a body of rules of action or conduct prescribed by controlling authority, and having binding legal force. That which must be obeyed and followed by citizens subject to sanctions or legal consequence is a law.”Black’s Law Dictionary, 6th ed., s.v. “law.”
+Functions of the Law
+
+In a nation, the law can serve to (1) keep the peace, (2) maintain the status quo, (3) preserve individual rights, (4) protect minorities against majorities, (5) promote social justice, and (6) provide for orderly social change. Some legal systems serve these purposes better than others. Although a nation ruled by an authoritarian government may keep the peace and maintain the status quo, it may also oppress minorities or political opponents (e.g., Burma, Zimbabwe, or Iraq under Saddam Hussein). Under colonialism, European nations often imposed peace in countries whose borders were somewhat arbitrarily created by those same European nations. Over several centuries prior to the twentieth century, empires were built by Spain, Portugal, Britain, Holland, France, Germany, Belgium, and Italy. With regard to the functions of the law, the empire may have kept the peace—largely with force—but it changed the status quo and seldom promoted the native peoples’ rights or social justice within the colonized nation.
+
+In nations that were former colonies of European nations, various ethnic and tribal factions have frequently made it difficult for a single, united government to rule effectively. In Rwanda, for example, power struggles between Hutus and Tutsis resulted in genocide of the Tutsi minority. (Genocide is the deliberate and systematic killing or displacement of one group of people by another group. In 1948, the international community formally condemned the crime of genocide.) In nations of the former Soviet Union, the withdrawal of a central power created power vacuums that were exploited by ethnic leaders. When Yugoslavia broke up, the different ethnic groups—Croats, Bosnians, and Serbians—fought bitterly for home turf rather than share power. In Iraq and Afghanistan, the effective blending of different groups of families, tribes, sects, and ethnic groups into a national governing body that shares power remains to be seen.
+Law and Politics
+
+In the United States, legislators, judges, administrative agencies, governors, and presidents make law, with substantial input from corporations, lobbyists, and a diverse group of nongovernment organizations (NGOs) such as the American Petroleum Institute, the Sierra Club, and the National Rifle Association. In the fifty states, judges are often appointed by governors or elected by the people. The process of electing state judges has become more and more politicized in the past fifteen years, with growing campaign contributions from those who would seek to seat judges with similar political leanings.
+
+In the federal system, judges are appointed by an elected official (the president) and confirmed by other elected officials (the Senate). If the president is from one party and the other party holds a majority of Senate seats, political conflicts may come up during the judges’ confirmation processes. Such a division has been fairly frequent over the past fifty years.
+
+In most nation-states (as countries are called in international law), knowing who has power to make and enforce the laws is a matter of knowing who has political power; in many places, the people or groups that have military power can also command political power to make and enforce the laws. Revolutions are difficult and contentious, but each year there are revolts against existing political-legal authority; an aspiration for democratic rule, or greater “rights” for citizens, is a recurring theme in politics and law.
