@@ -7,6 +7,7 @@ Created on Sun May 27 02:20:39 2018
 """
 from text_processing import extract_terms_by_frequency, extract_terms_by_score, normalize_text
 from utils import cooccurence_similarity_matrix as csm
+from utils import regularize
 import numpy as np
 from sklearn.manifold import MDS
 from utils import PlotlyVisualizer
@@ -69,6 +70,7 @@ class Wordmesh():
         self.extract_ngrams = extract_ngrams
         self.num_keywords = num_keywords
         self.filter_numbers = filter_numbers
+        self.apply_delaunay = True
         self._extract_keywords()
         self.set_fontsize()
         self.set_fontcolor()
@@ -137,16 +139,11 @@ class Wordmesh():
             raise NotImplementedError()
             
         #applying regularization
-        k = regularization_factor
-        mx = self.fontsizes_norm.max()
-        mn = self.fontsizes_norm.min()
+        self.fontsizes_norm = regularize(self.fontsizes_norm, 
+                                         regularization_factor)
         
-        a = mx*(k-1)/((mx-mn)*k)
-        b = mx*(mx-mn*k)/((mx-mn)*k)
-        
-        self.fontsizes_norm = a*self.fontsizes_norm + b
+        #normalize
         self.fontsizes_norm = self.fontsizes_norm/self.fontsizes_norm.sum()
-            
         return self.fontsizes_norm
             
     def set_fontcolor(self, by='random', custom_colors=None):
@@ -186,6 +183,11 @@ class Wordmesh():
                                                     ['3'][tone]), 
                                                     len(self.keywords))
             
+        elif by=='pos_tag':
+            c = cl.scales['5']['qual']['Set2'] + ['rgb(254,254,254)', 'rgb(254,254,254)']
+            tags = ['NOUN','PROPN','ADJ','VERB','ADV','SYM','PUNCT']
+            mapping = {tag:c[i] for i,tag in enumerate(tags)}
+            self.fontcolors = list(map(mapping.get, self.pos_tags))
         else:
             raise NotImplementedError()
             
@@ -224,11 +226,28 @@ class Wordmesh():
         """
         self.normalized_text = normalize_text(self.text)
         if by=='cooccurence':
-            self.similarity_matrix = csm(self.normalized_text,
+            sm = csm(self.normalized_text,
                                          self.normalized_keywords)
-            
+        elif by=='random':
+            num_kw = len(self.keywords)
+            sm = np.full((num_kw,num_kw), 240)
+            self.apply_delaunay = False
+            self.similarity_matrix= sm
+            return sm
+        elif by=='size':
+            sm = 1/(np.outer(self.fontsizes_norm, self.fontsizes_norm.T)+1)
         else:
             raise NotImplementedError()
+            
+        #apply regularization
+        shape = sm.shape
+        temp = regularize(sm.flatten(), 5)
+        sm = temp.reshape(shape)
+        
+        #normalize
+        sm = sm*200/np.mean(sm)
+        
+        self.similarity_matrix= sm
         
         return self.similarity_matrix
     
@@ -247,7 +266,8 @@ class Wordmesh():
         
         bbd = self._visualizer.bounding_box_dimensions
         
-        fdm = ForceDirectedModel(mds, bbd, num_iters=100)
+        fdm = ForceDirectedModel(mds, bbd, num_iters=100,
+                                 apply_delaunay=self.apply_delaunay)
         self.force_directed_model = fdm
         
         if store_as_attribute:
@@ -274,6 +294,11 @@ class Wordmesh():
         """
         Temporary
         """  
+        try:
+            self._visualizer
+        except AttributeError:
+            self.generate_embeddings()
+            
         if force_directed_animation:
             all_positions = self._get_all_fditerations()
             self._visualizer.save_wordmesh_as_html(all_positions, filename, 

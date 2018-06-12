@@ -37,7 +37,7 @@ def _fv_attraction(point, other_points, multiplier=1,
     
     return force_vectors
 
-def _fv_collision(point, box_size, other_points, other_box_sizes, multiplier=2):
+def _fv_collision(point, box_size, other_points, other_box_sizes, multiplier=5):
     """
     box_size = (width, height)
     other_box_sizes shape = (num_points, 2)
@@ -123,7 +123,7 @@ def _delaunay_force(point_index, current_positions, simplices, initial_positions
 
 
 def _update_positions(current_positions, bounding_box_dimensions, simplices, 
-                      initial_positions, descent_rate, momentum=None):
+                      initial_positions, descent_rate, momentum=None, apply_delaunay=True):
     """
     Performs a single iteration of force directed displacement for every word
     """
@@ -145,9 +145,14 @@ def _update_positions(current_positions, bounding_box_dimensions, simplices,
         aforce = _fv_attraction(this_particle, other_particles, normalised=True)
         cforce = _fv_collision(this_particle, this_bbd, other_particles, 
                                other_bbds)
-        dforce = _delaunay_force(i, updated_positions, simplices, initial_positions)
         
-        total_force = np.sum(cforce+aforce, axis=0) + np.sum(dforce, axis=0)
+        if apply_delaunay:
+            dforce = _delaunay_force(i, updated_positions, simplices,
+                                     initial_positions)
+            total_force = np.sum(cforce+aforce, axis=0) + np.sum(dforce, axis=0)
+            
+        else:
+            total_force = np.sum(cforce+aforce, axis=0) 
         
         if momentum is not None:
             total_force = total_force + momentum[i]
@@ -162,7 +167,7 @@ def _update_positions(current_positions, bounding_box_dimensions, simplices,
 class ForceDirectedModel():
     
     def __init__(self, positions, bounding_box_dimensions, cluster_labels=None,
-                 num_iters=1000):
+                 num_iters=1000, apply_delaunay=True):
         
         """
         Parameters
@@ -185,6 +190,7 @@ class ForceDirectedModel():
         self.bounding_box_dimensions = bounding_box_dimensions
         self.cluster_labels = cluster_labels
         self.num_iters = num_iters
+        self.apply_delaunay = apply_delaunay
         self.simplices = Delaunay(positions).simplices
         self.all_positions = self._run_algorithm()
         self.all_centered_positions = self._centered_positions()
@@ -230,7 +236,8 @@ class ForceDirectedModel():
             position_i, force_memory = _update_positions(position_i, 
                                                          bbd, simplices, 
                                                          self.initial_positions,
-                                                         initial_dr*(1-i*i/(self.num_iters*self.num_iters)))#))
+                                                         initial_dr*(1-i*i/(self.num_iters*self.num_iters)),
+                                                         apply_delaunay=self.apply_delaunay)#))
             all_positions[i] = position_i
             
         return all_positions

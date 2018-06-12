@@ -69,7 +69,7 @@ class PlotlyVisualizer():
         y_top = np.max((coordinates[:,1]+bbd[:,1]/2))
         
         zoom = max((x_right-x_left)/self.width, (y_top-y_bottom)/self.height)
-        return zoom
+        return zoom*1.1 if zoom<1 else zoom*0.9
     
     def get_bb_dimensions(self):
     
@@ -150,12 +150,14 @@ class PlotlyVisualizer():
                     hovertext = self.hovertext,
             
                     #Sets the legend group for this trace. 
-                    #Traces part of the same legend group hide/show at the same time when toggling legend items. 
+                    #Traces part of the same legend group hide/show at the 
+                    #same time when toggling legend items. 
                     showlegend = showlegend,
                     legendgroup = legendgroup,
                     name = legendgroup,
             
-                    #Assigns id labels to each datum. These ids for object constancy of data points during animation. 
+                    #Assigns id labels to each datum. These ids for object 
+                    #constancy of data points during animation. 
                     ids = self.words,
             
                     x = coordinates[:,0],
@@ -234,3 +236,18 @@ def cooccurence_similarity_matrix(text, wordlist):
     vscore_func = np.vectorize(score_func)
     return np.fromfunction(vscore_func, shape=[len(wordlist)]*2)
 
+def regularize(arr, factor):
+    arr = np.array(arr)
+    assert arr.ndim == 1
+    
+    #applying regularization
+    mx = arr.max()
+    mn = arr.min()
+    
+    if (mx==mn):
+        return arr
+    
+    a = mx*(factor-1)/((mx-mn)*factor)
+    b = mx*(mx-mn*factor)/((mx-mn)*factor)
+    
+    return a*arr + b

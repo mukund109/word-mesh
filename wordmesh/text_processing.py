@@ -66,8 +66,20 @@ def extract_terms_by_score(text, algorithm, num_terms, extract_ngrams, ngrams=(1
                                                           n_keyterms=num_terms)
        
     keywords = [i[0] for i in keywords_scores]
-    scores = np.array([i[1] for i in keywords_scores])
+    scores = [i[1] for i in keywords_scores]
     
+    #temporary -PRON- filter
+    tempkw = []
+    temps = []
+    for i,kw in enumerate(keywords):
+        if kw.find('-PRON-')==-1:
+            tempkw.append(kw)
+            temps.append(scores[i])
+    keywords = tempkw
+    scores = temps
+    
+    
+    scores = np.array(scores)
     #get pos tags for keywords, if keywords are ngrams, the 
     #pos tag of the last word in the ngram is picked
     ending_tokens = [ngram.split(' ')[-1] for ngram in keywords]
@@ -114,16 +126,30 @@ def extract_terms_by_frequency(text,
     
     #get the frequencies of the filtered terms
     ngrams = ngrams if extract_ngrams else (1,)
-    print(ngrams)
-    frequencies = doc.to_bag_of_terms(ngrams,
+    if 'PROPN' in pos_filter:
+        frequencies = doc.to_bag_of_terms(ngrams,
                                       as_strings=True, 
                                       include_pos=pos_filter,
                                       filter_nums=filter_nums, 
                                       include_types=['PERSON','LOC','ORG'])
+    elif 'PROPN' not in pos_filter:
+        frequencies = doc.to_bag_of_terms(ngrams,
+                                          named_entities=False,
+                                          as_strings=True, 
+                                          include_pos=pos_filter,
+                                          filter_nums=filter_nums)
     
     #sort the terms based on the frequencies and 
     #choose the top num_terms terms
     frequencies = list(frequencies.items())
+
+    #temporary -PRON- filter
+    temp = []
+    for tup in frequencies:
+        if tup[0].find('-PRON-')==-1:
+            temp.append(tup)
+    frequencies = temp
+    
     frequencies.sort(key=lambda x: x[1], reverse=True)
     top_terms = frequencies[:num_terms]
     

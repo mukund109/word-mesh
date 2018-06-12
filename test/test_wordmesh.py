@@ -29,10 +29,20 @@ class TestWordmesh(unittest.TestCase):
         
 if __name__ == '__main__':
     #unittest.main()
-    wm = Wordmesh(test_text, pos_filter=['NOUN','ADJ','VERB','PROPN'], 
-                  keyword_extractor='tf', extract_ngrams=False)
-    print(wm.keywords)
+#    wm = Wordmesh(test_text, pos_filter=['NOUN','ADJ','VERB','PROPN'], 
+#                  keyword_extractor='textrank', extract_ngrams=False, num_keywords=70)
+#    print(wm.keywords)
+#    wm.set_clustering_criteria(by='cooccurence')
+#    wm.set_fontcolor(by='pos_tag')
+#    wm.generate_embeddings()
+#    wm.save_as_html()
+#    wm.save_as_html(filename='animated',force_directed_animation=True)
+    with open('sample_speech.txt') as f:
+         trump_text = f.read()
         
-        
-        
-        
+    wm = Wordmesh(trump_text, dimensions=(900, 1500), keyword_extractor='tf', 
+                  pos_filter=['ADJ'], extract_ngrams=False, num_keywords=80)
+    wm.set_clustering_criteria('size')
+    wm.generate_embeddings()
+
+    wm.save_as_html()
