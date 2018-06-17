@@ -17,7 +17,7 @@ import colorlover as cl
 class Wordmesh():
     def __init__(self, text, dimensions=(500, 900),
                  keyword_extractor='textrank', num_keywords=35,
-                 lemmatize=True, pos_filter=['NOUN','ADJ','PROPN'], 
+                 lemmatize=True, pos_filter=None, 
                  extract_ngrams=True, filter_numbers=True):
              
         """Wordmesh object for generating and drawing wordmeshes/wordclouds.
@@ -44,7 +44,7 @@ class Wordmesh():
             extracted from it
             
         pos_filter : list of str, optional
-            Supported pos tags-{'NOUN','PROPN','ADJ','VERB','ADV','SYM',PUNCT'}.
+            Supported pos tags-{'NOUN','PROPN','ADJ','VERB','ADV','SYM','PUNCT'}.
             A POS filter can be applied on the keywords ONLY when the 
             keyword_extractor has been set to 'tf'.
             
@@ -61,6 +61,12 @@ class Wordmesh():
             A word mesh object 
         
         """
+        #The pos_filer has only been implemented for 'tf' based extraction
+        if (keyword_extractor!='tf') and (pos_filter is not None):
+            msg = '\'pos_filter\' is only available for \'tf\' based keyword extractor'
+            raise ValueError(msg)
+        elif pos_filter is None:  
+            pos_filter = ['NOUN','ADJ','PROPN']
         
         self.text = text
         self.resolution = dimensions
@@ -88,18 +94,19 @@ class Wordmesh():
             self.keywords, self.scores, self.pos_tags, n_kw = \
             extract_terms_by_score(self.text, self.keyword_extractor,
                                    self.num_keywords, self.extract_ngrams)
-            
+        #self.normalized_keywords are all lemmatized if self.lemmatize is True,
+        #unlike self.keywords which contain capitalized named entities
         self.normalized_keywords = n_kw
             
 
     def set_fontsize(self, by='scores', custom_sizes=None, 
-                     directly_proportional=True, regularization_factor=3):
+                     apply_regularization=True, regularization_factor=3):
         """
         This function can be used to pick a metric which decides the font size
-        for each extracted keyword. By default, the font size is directly 
+        for each extracted keyword. The font size is directly 
         proportional to the 'scores' assigned by the keyword extractor. 
         
-        Fonts can be picked by: 'scores', 'word_frequency', 'random', None
+        Fonts can be picked by: 'scores', 'word_frequency', 'constant', None
         
         You can also choose custom font sizes by passing in a dictionary 
         of word:fontsize pairs using the argument custom_sizes
@@ -110,14 +117,16 @@ class Wordmesh():
         by : string or None, optional
             The metric used to assign font sizes. Can be None if custom sizes 
             are being used
-        custom_sizes : dictionary or None, optional
-            A dictionary with individual keywords as keys and font sizes as
-            values. The dictionary should contain all extracted keywords (that 
-            can be accessed through the keywords attribute). Extra words will
-            be ignored
-        directly_proportional : bool, optional
-            Controls whether font sizes are directly or inversely proportional
-            to the value of the chosen metric
+        custom_sizes : list of float or numpy array or None, optional
+            A list of font sizes. There should be a one-to-one correspondence
+            between the numbers in the list and the extracted keywords (that 
+            can be accessed through the keywords attribute). Note that this list
+            is only used to calculate relative sizes, the actual sizes depend
+            on the visualization tool used. Alse it is advised that you turn 
+            regularizatin off when applying custom font sizes.
+        apply_regularization : bool, optional
+            Determines whether font sizes will be regularized to prevent extreme 
+            values which might lead to a poor visualization
         regularization_factor : int, optional
             Determines the ratio max(fontsizes)/min(fontsizes). Fontsizes are
             scaled linearly so as to achieve this ratio. This helps prevent 
@@ -126,33 +135,37 @@ class Wordmesh():
         Returns
         -------
         
-        numpy array
-            Array of normalized font sizes, normalized such that the maximum 
-            is 1. There is a one-one correspondence between these and the 
-            extracted keywords
+        None
         """
         
-        if by=='scores' and directly_proportional:
-            self.fontsizes_norm = self.scores/self.scores.sum()
-            
+        if custom_sizes is not None:
+            assert len(custom_sizes)==len(self.keywords)
+            self.fontsizes_norm = np.array(custom_sizes)
+        elif by=='scores':
+            self.fontsizes_norm = self.scores/self.scores.sum() 
+        elif by=='constant':
+            self.fontsizes_norm = np.full(len(self.keywords), 1)
         else:
-            raise NotImplementedError()
+            raise ValueError()
+            
             
         #applying regularization
-        self.fontsizes_norm = regularize(self.fontsizes_norm, 
-                                         regularization_factor)
+        if apply_regularization:
+            self.fontsizes_norm = regularize(self.fontsizes_norm, 
+                                             regularization_factor)
         
         #normalize
         self.fontsizes_norm = self.fontsizes_norm/self.fontsizes_norm.sum()
-        return self.fontsizes_norm
+
             
-    def set_fontcolor(self, by='random', custom_colors=None):
+    def set_fontcolor(self, by='random', colorscale='YlGnBu', 
+                      custom_colors=None):
         """
         This function can be used to pick a metric which decides the font color
         for each extracted keyword. By default, the font size is assigned 
         randomly 
         
-        Fonts can be picked by: 'random', 'word_frequency', None
+        Fonts can be picked by: 'random', 'scores', 'pos_tag' None
         
         You can also choose custom font colors by passing in a dictionary 
         of word:fontcolor pairs using the argument custom_sizes, where 
@@ -161,9 +174,12 @@ class Wordmesh():
         Parameters
         ----------
         
-        by : string or None, optional
+        by : str or None, optional
             The metric used to assign font sizes. Can be None if custom colors 
             are being used
+        colorscale: str or None, optional
+            One of [Greys, YlGnBu, Greens, YlOrRd, Bluered, RdBu, Reds, Blues].
+            When by=='scores', this will be used to determine the colorscale.
         custom_colors : dictionary or None, optional
             A dictionary with individual keywords as keys and font colors as
             values (these should be RGB tuples). The dictionary should contain
@@ -173,8 +189,7 @@ class Wordmesh():
         Returns
         -------
         
-        numpy array
-            A numpy array of shape (num_keywords, 3).
+        None
         """
         
         if by=='random':
@@ -182,19 +197,39 @@ class Wordmesh():
             self.fontcolors = np.random.choice(list(cl.flipper()['seq']\
                                                     ['3'][tone]), 
                                                     len(self.keywords))
+                
+        elif by=='scores':
+
+            scales = {**cl.scales['8']['div'], **cl.scales['8']['seq']}
+            #Even though, currently all colorscales in 'scales.keys()' can be 
+            #used, only the ones listed in the doc can be used for creating a 
+            #colorbar in the plotly plot
+            
+            assert colorscale in ['Greys','YlGnBu', 'Greens', 'YlOrRd', 
+                                  'Bluered', 'RdBu', 'Reds', 'Blues']
+            colors = scales[colorscale]
+            colors.reverse()
+            
+            #The keywords are binned based on their scores
+            mn, mx = self.scores.min(), self.scores.max()
+            bins = np.linspace(mn,mx,8)
+            indices = np.digitize(self.scores, bins)-1
+            
+            self.fontcolors = [colors[i] for i in indices]
             
         elif by=='pos_tag':
             c = cl.scales['5']['qual']['Set2'] + ['rgb(254,254,254)', 'rgb(254,254,254)']
             tags = ['NOUN','PROPN','ADJ','VERB','ADV','SYM','PUNCT']
             mapping = {tag:c[i] for i,tag in enumerate(tags)}
             self.fontcolors = list(map(mapping.get, self.pos_tags))
-        else:
-            raise NotImplementedError()
             
-        return self.fontcolors
+        else:
+            raise ValueError()
+
             
     def set_clustering_criteria(self, by='cooccurence', 
-                          custom_similarity_matrix=None):
+                          custom_similarity_matrix=None, 
+                          apply_regularization=True):
         """
         This function can be used to define the criteria for clustering of
         different keywords in the wordcloud. By default, clustering is done
@@ -234,15 +269,18 @@ class Wordmesh():
             self.apply_delaunay = False
             self.similarity_matrix= sm
             return sm
-        elif by=='size':
-            sm = 1/(np.outer(self.fontsizes_norm, self.fontsizes_norm.T)+1)
+        
+        elif by=='scores':
+            mat = np.outer(self.scores, self.scores.T)+1
+            sm = 1/(np.absolute(mat-mat.mean()))
         else:
-            raise NotImplementedError()
+            raise ValueError()
             
         #apply regularization
-        shape = sm.shape
-        temp = regularize(sm.flatten(), 5)
-        sm = temp.reshape(shape)
+        if apply_regularization:
+            shape = sm.shape
+            temp = regularize(sm.flatten(), 5)
+            sm = temp.reshape(shape)
         
         #normalize
         sm = sm*200/np.mean(sm)

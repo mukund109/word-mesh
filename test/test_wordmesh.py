@@ -41,8 +41,10 @@ if __name__ == '__main__':
          trump_text = f.read()
         
     wm = Wordmesh(trump_text, dimensions=(900, 1500), keyword_extractor='tf', 
-                  pos_filter=['ADJ'], extract_ngrams=False, num_keywords=80)
-    wm.set_clustering_criteria('size')
+                  extract_ngrams=False, num_keywords=80)
+    
+    wm.set_clustering_criteria('cooccurence')
+    wm.set_fontsize('scores')
+    wm.set_fontcolor('random','YlOrRd')
     wm.generate_embeddings()
-
     wm.save_as_html()
