@@ -11,7 +11,13 @@ from scipy.spatial import Delaunay
 from scipy.spatial.distance import pdist
 import random
 
-def _fv_attraction(point, other_points, multiplier=1, 
+ATTRACTION_MULTIPLIER = 1
+COLLISION_MULTIPLIER = 5
+COLLISION_CAP = 1000
+DELAUNAY_MULTIPLIER = 3
+DR_CONSTANT = 150
+
+def _fv_attraction(point, other_points, multiplier=ATTRACTION_MULTIPLIER, 
                    inverse_distance_proportionality=False, normalised=False):
     
     """
@@ -37,7 +43,8 @@ def _fv_attraction(point, other_points, multiplier=1,
     
     return force_vectors
 
-def _fv_collision(point, box_size, other_points, other_box_sizes, multiplier=5):
+def _fv_collision(point, box_size, other_points, other_box_sizes, 
+                  multiplier=COLLISION_MULTIPLIER):
     """
     box_size = (width, height)
     other_box_sizes shape = (num_points, 2)
@@ -71,9 +78,13 @@ def _fv_collision(point, box_size, other_points, other_box_sizes, multiplier=5):
                                                    multiplier, 
                                                    True))*overlapping_area
     
+    #cap on how large the collision force vector is allowed to be
+    force_vector[force_vector>COLLISION_CAP]=COLLISION_CAP
+    force_vector[force_vector<-COLLISION_CAP]=-COLLISION_CAP
     return force_vector  
 
-def _delaunay_force(point_index, current_positions, simplices, initial_positions, multiplier=3):
+def _delaunay_force(point_index, current_positions, simplices, 
+                    initial_positions, multiplier=DELAUNAY_MULTIPLIER):
     
     #get simplices which contain said point
     
@@ -225,14 +236,15 @@ class ForceDirectedModel():
         
         
         all_positions = np.ndarray(shape=(self.num_iters, self.num_particles, 2))
+        all_positions[0] = position_i
         
         #make it a function of max radial distance or something
         avg_dist = pdist(position_i).sum(0).sum()/(self.num_particles**2)
-        initial_dr = avg_dist/(150*self.num_iters)
+        initial_dr = avg_dist/(DR_CONSTANT*self.num_iters)
         
         force_memory = np.zeros((self.num_particles, 2))
         
-        for i in range(self.num_iters):
+        for i in range(1,self.num_iters):
             position_i, force_memory = _update_positions(position_i, 
                                                          bbd, simplices, 
                                                          self.initial_positions,

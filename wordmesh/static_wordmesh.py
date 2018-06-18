@@ -14,6 +14,11 @@ from utils import PlotlyVisualizer
 from force_directed_model import ForceDirectedModel
 import colorlover as cl
 
+FONTSIZE_REG_FACTOR = 3
+CLUSTER_REG_FACTOR = 4
+NUM_ITERS = 100
+SIMILARITY_MEAN = 500
+
 class Wordmesh():
     def __init__(self, text, dimensions=(500, 900),
                  keyword_extractor='textrank', num_keywords=35,
@@ -63,11 +68,23 @@ class Wordmesh():
         """
         #The pos_filer has only been implemented for 'tf' based extraction
         if (keyword_extractor!='tf') and (pos_filter is not None):
-            msg = '\'pos_filter\' is only available for \'tf\' based keyword extractor'
-            raise ValueError(msg)
+            
+            msg = '\'pos_filter\' is only available for \'tf\'' \
+            'based keyword extractor. This is an issue with textacy' \
+            'and will be fixed in the future'
+
+            raise NotImplementedError()
         elif pos_filter is None:  
             pos_filter = ['NOUN','ADJ','PROPN']
-        
+            
+        #textacy's functions are unstable when the following condition is met
+        if (keyword_extractor!='tf') and extract_ngrams:
+            msg = 'Currently, extracting ngrams using graph based methods ' \
+            'is not advisable. This is due to underlying issues ' \
+            'with textacy which will be fixed in the future.'
+            raise NotImplementedError(msg)
+            
+            
         self.text = text
         self.resolution = dimensions
         self.lemmatize = lemmatize
@@ -100,7 +117,8 @@ class Wordmesh():
             
 
     def set_fontsize(self, by='scores', custom_sizes=None, 
-                     apply_regularization=True, regularization_factor=3):
+                     apply_regularization=True, 
+                     regularization_factor=FONTSIZE_REG_FACTOR):
         """
         This function can be used to pick a metric which decides the font size
         for each extracted keyword. The font size is directly 
@@ -137,7 +155,7 @@ class Wordmesh():
         
         None
         """
-        
+
         if custom_sizes is not None:
             assert len(custom_sizes)==len(self.keywords)
             self.fontsizes_norm = np.array(custom_sizes)
@@ -147,8 +165,7 @@ class Wordmesh():
             self.fontsizes_norm = np.full(len(self.keywords), 1)
         else:
             raise ValueError()
-            
-            
+           
         #applying regularization
         if apply_regularization:
             self.fontsizes_norm = regularize(self.fontsizes_norm, 
@@ -271,19 +288,19 @@ class Wordmesh():
             return sm
         
         elif by=='scores':
-            mat = np.outer(self.scores, self.scores.T)+1
-            sm = 1/(np.absolute(mat-mat.mean()))
+            mat = np.outer(self.scores, self.scores.T)
+            sm = (np.absolute(mat-(mat**(1/16)).mean()))
         else:
             raise ValueError()
             
         #apply regularization
         if apply_regularization:
             shape = sm.shape
-            temp = regularize(sm.flatten(), 5)
+            temp = regularize(sm.flatten(), CLUSTER_REG_FACTOR)
             sm = temp.reshape(shape)
         
         #normalize
-        sm = sm*200/np.mean(sm)
+        sm = sm*SIMILARITY_MEAN/np.mean(sm)
         
         self.similarity_matrix= sm
         
@@ -304,7 +321,7 @@ class Wordmesh():
         
         bbd = self._visualizer.bounding_box_dimensions
         
-        fdm = ForceDirectedModel(mds, bbd, num_iters=100,
+        fdm = ForceDirectedModel(mds, bbd, num_iters=NUM_ITERS,
                                  apply_delaunay=self.apply_delaunay)
         self.force_directed_model = fdm
         
@@ -344,11 +361,4 @@ class Wordmesh():
         else:
             self._visualizer.save_wordmesh_as_html(self.embeddings, filename)
             
-    def get_mpl_figure(self):
-        #embeddings = self._generate_embeddings(backend='mpl',
-        #                                       store_as_attribute=False)
-        #fig = _get_mpl_figure(embeddings, self.keywords, 
-        #                      self.fontsizes_norm*100)
-        #return fig, embeddings 
-        raise NotImplementedError()
         

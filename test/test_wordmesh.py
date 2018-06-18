@@ -40,11 +40,12 @@ if __name__ == '__main__':
     with open('sample_speech.txt') as f:
          trump_text = f.read()
         
-    wm = Wordmesh(trump_text, dimensions=(900, 1500), keyword_extractor='tf', 
-                  extract_ngrams=False, num_keywords=80)
+    wm = Wordmesh(trump_text, dimensions=(900, 1500), keyword_extractor='textrank', 
+                  extract_ngrams=False, num_keywords=50, lemmatize=True)
     
-    wm.set_clustering_criteria('cooccurence')
+    wm.set_clustering_criteria('scores')
     wm.set_fontsize('scores')
-    wm.set_fontcolor('random','YlOrRd')
+    wm.set_fontcolor('scores','Reds')
     wm.generate_embeddings()
-    wm.save_as_html()
+    wm.save_as_html(force_directed_animation=True)
+    print('done')

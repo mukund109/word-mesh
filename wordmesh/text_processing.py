@@ -6,7 +6,7 @@ Created on Sun Jun 10 02:56:08 2018
 @author: mukund
 """
 #Will throw an error if language model has not been downloaded
-import en_core_web_sm
+import en_core_web_md
 
 import textacy
 from textacy.extract import named_entities
@@ -15,10 +15,9 @@ import numpy as np
 
 def _text_preprocessing(text):
     """
-    need to replace apostrophes with '\u2019m'
+    Apostrophes not handled properly by spaCy
     https://github.com/explosion/spaCy/issues/685
     """
-    #return text.replace('’s', '\u2019s').replace('’m', '\u2019m')
     return text.replace('’s', 's').replace('’m', 'm')
 
 def _text_postprocessing(doc, keywords):
@@ -44,7 +43,7 @@ def extract_terms_by_score(text, algorithm, num_terms, extract_ngrams, ngrams=(1
     """
     #convert raw text into spaCy doc
     text = _text_preprocessing(text)
-    doc = textacy.Doc(text, lang='en')
+    doc = textacy.Doc(text, lang='en_core_web_md')
     
     if algorithm=='sgrank':
         ngrams = ngrams if extract_ngrams else (1,)
@@ -67,7 +66,7 @@ def extract_terms_by_score(text, algorithm, num_terms, extract_ngrams, ngrams=(1
        
     keywords = [i[0] for i in keywords_scores]
     scores = [i[1] for i in keywords_scores]
-    
+
     #temporary -PRON- filter
     tempkw = []
     temps = []
@@ -166,17 +165,5 @@ def extract_terms_by_frequency(text,
     keywords = _text_postprocessing(doc, keywords)
     return keywords, scores, pos_tags, normalized_keywords
     
-#def _cooccurence_score(graph, term1, term2):
-##    window_width = int(len(doc)/100)+3
-##    graph = doc.to_semantic_network(edge_weighting='cooc_freq', 
-##                                    window_width=window_width, normalize='lemma')
-#
-#    words1 = term1.split(' ')
-#    words2 = term2.split(' ')
-#    score = 0
-#    for w1 in words1:
-#        for w2 in words2:
-#            try:
-#                score = score + graph[w1][w2]['weight']
             
     
