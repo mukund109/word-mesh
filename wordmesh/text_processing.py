@@ -37,19 +37,22 @@ def _text_postprocessing(doc, keywords):
     
     return keywords
 
-def extract_terms_by_score(text, algorithm, num_terms, extract_ngrams, ngrams=(1,2)):
-    """
-    Need to add support for lemmatization
-    """
+def extract_terms_by_score(text, algorithm, num_terms, extract_ngrams, ngrams=(1,2), lemmatize=True):
+    
+    if lemmatize:
+        normalize = 'lemma'
+    else :
+        normalize = None
     #convert raw text into spaCy doc
     text = _text_preprocessing(text)
     doc = textacy.Doc(text, lang='en_core_web_md')
     
     if algorithm=='sgrank':
         ngrams = ngrams if extract_ngrams else (1,)
-        keywords_scores = sgrank(doc, ngrams=ngrams, n_keyterms=num_terms)
+        keywords_scores = sgrank(doc, normalize=normalize, ngrams=ngrams, n_keyterms=num_terms)
     elif (algorithm=='pagerank') | (algorithm=='textrank'):
-        keywords_scores = key_terms_from_semantic_network(doc,
+        keywords_scores = key_terms_from_semantic_network(doc, 
+                                                          normalize=normalize,
                                                           edge_weighting='cooc_freq',
                                                           window_width=5,
                                                           ranking_algo='pagerank',
@@ -58,6 +61,7 @@ def extract_terms_by_score(text, algorithm, num_terms, extract_ngrams, ngrams=(1
 
     else:
         keywords_scores = key_terms_from_semantic_network(doc,
+                                                          normalize=normalize,
                                                           edge_weighting='cooc_freq',
                                                           window_width=5,
                                                           ranking_algo=algorithm,
@@ -82,17 +86,25 @@ def extract_terms_by_score(text, algorithm, num_terms, extract_ngrams, ngrams=(1
     #get pos tags for keywords, if keywords are ngrams, the 
     #pos tag of the last word in the ngram is picked
     ending_tokens = [ngram.split(' ')[-1] for ngram in keywords]
-    mapping = _get_pos_mapping(doc)
+    mapping = _get_pos_mapping(doc, normalize)
     pos_tags = [mapping[end] for end in ending_tokens]
 
     normalized_keywords = keywords.copy()
     keywords = _text_postprocessing(doc, keywords)
     return keywords, scores, pos_tags, normalized_keywords
    
-def _get_pos_mapping(doc):
+def _get_pos_mapping(doc, normalize):
     mapping = dict()
-    for token in doc:
-        mapping.update({token.lemma_:token.pos_})
+    if normalize=='lemma':
+        for token in doc:
+                mapping.update({token.lemma_:token.pos_})
+    elif normalize=='lower':
+        for token in doc:
+            mapping.update({token.lower_:token.pos_})
+    else:
+        for token in doc:
+                mapping.update({token.text:token.pos_})
+        
     return mapping
 
 def _get_frequency_mapping(doc):
@@ -115,10 +127,15 @@ def extract_terms_by_frequency(text,
                                pos_filter=['NOUN','ADJ','PROPN'],
                                filter_nums=True, 
                                extract_ngrams = True,
-                               ngrams=(1,2)):
+                               ngrams=(1,2), lemmatize=True):
     """
-    pos_filter : ({'NOUN','PROPN','ADJ','VERB','ADV','SYM',PUNCT'})
+    pos_filter : {'NOUN','PROPN','ADJ','VERB','ADV','SYM',PUNCT'}
     """
+    if lemmatize:
+        normalize = 'lemma'
+    else :
+        normalize = None
+        
     #convert raw text into spaCy doc
     text = _text_preprocessing(text)
     doc = textacy.Doc(text, lang='en')
@@ -126,13 +143,13 @@ def extract_terms_by_frequency(text,
     #get the frequencies of the filtered terms
     ngrams = ngrams if extract_ngrams else (1,)
     if 'PROPN' in pos_filter:
-        frequencies = doc.to_bag_of_terms(ngrams,
+        frequencies = doc.to_bag_of_terms(ngrams, normalize=normalize,
                                       as_strings=True, 
                                       include_pos=pos_filter,
                                       filter_nums=filter_nums, 
                                       include_types=['PERSON','LOC','ORG'])
     elif 'PROPN' not in pos_filter:
-        frequencies = doc.to_bag_of_terms(ngrams,
+        frequencies = doc.to_bag_of_terms(ngrams, normalize=normalize,
                                           named_entities=False,
                                           as_strings=True, 
                                           include_pos=pos_filter,
@@ -158,7 +175,7 @@ def extract_terms_by_frequency(text,
     #get pos tags for keywords, if keywords are ngrams, the 
     #pos tag of the last word in the ngram is picked
     ending_tokens = [ngram.split(' ')[-1] for ngram in keywords]
-    mapping = _get_pos_mapping(doc)
+    mapping = _get_pos_mapping(doc, normalize)
     pos_tags = [mapping[end] for end in ending_tokens]
     
     normalized_keywords = keywords.copy()

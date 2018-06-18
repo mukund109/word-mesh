@@ -106,11 +106,13 @@ class Wordmesh():
             self.keywords, self.scores, self.pos_tags, n_kw = \
             extract_terms_by_frequency(self.text, self.num_keywords, 
                                        self.pos_filter, self.filter_numbers, 
-                                       self.extract_ngrams)
+                                       self.extract_ngrams,
+                                       lemmatize=self.lemmatize)
         else:
             self.keywords, self.scores, self.pos_tags, n_kw = \
             extract_terms_by_score(self.text, self.keyword_extractor,
-                                   self.num_keywords, self.extract_ngrams)
+                                   self.num_keywords, self.extract_ngrams,
+                                   lemmatize=self.lemmatize)
         #self.normalized_keywords are all lemmatized if self.lemmatize is True,
         #unlike self.keywords which contain capitalized named entities
         self.normalized_keywords = n_kw
@@ -289,7 +291,7 @@ class Wordmesh():
         
         elif by=='scores':
             mat = np.outer(self.scores, self.scores.T)
-            sm = (np.absolute(mat-(mat**(1/16)).mean()))
+            sm = 1/np.absolute(mat-(mat**(1/16)).mean())
         else:
             raise ValueError()
             

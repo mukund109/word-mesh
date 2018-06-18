@@ -40,8 +40,8 @@ if __name__ == '__main__':
     with open('sample_speech.txt') as f:
          trump_text = f.read()
         
-    wm = Wordmesh(trump_text, dimensions=(900, 1500), keyword_extractor='textrank', 
-                  extract_ngrams=False, num_keywords=50, lemmatize=True)
+    wm = Wordmesh(trump_text, dimensions=(900, 1500), pos_filter=['ADJ'],keyword_extractor='tf', 
+                  extract_ngrams=False, num_keywords=80, lemmatize=False)
     
     wm.set_clustering_criteria('scores')
     wm.set_fontsize('scores')
