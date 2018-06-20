@@ -7,15 +7,11 @@ Created on Mon May 28 04:26:25 2018
 """
 
 import numpy as np
-#import os
-#import nltk
 import plotly.offline as py
 import plotly.graph_objs as go
 import matplotlib.pyplot as plt
 plt.ioff()
 
-RELATIONSHIP_METRICS = ['cooccurence']
-DISCRETE_PROPERTIES = ['POS']
 PLOTLY_FONTSIZE_BBW = 0.18
 PLOTLY_FONTSIZE_BBH = 0.28
 
@@ -201,16 +197,33 @@ class PlotlyVisualizer():
     
 
 def _cooccurence_score(text, word1, word2): 
-    text, word1, word2 = text.lower(), word1.lower(), word2.lower()
+    #text, word1, word2 = text.lower(), word1.lower(), word2.lower()
     l1 = _find_all(text, word1)
     l2 = _find_all(text, word2)
 
-    square_sum =0
+    distance =0
     for i in l1:
         for j in l2:
-            square_sum = square_sum + abs(i-j)
+            distance = distance + abs(i-j)
 
-    return (square_sum**(1/2))/(len(l1)*len(l2)+1)
+    return distance/(len(l1)*len(l2)+1)
+
+def _cooccurence_score2(text, word1, word2):
+    l1 = _find_all(text, word1)
+    l2 = _find_all(text, word2)
+    
+    def _smallest_cooc_distances(list1, list2):
+        smallest_distance = len(text)
+        sum_=0
+        for i in list1:
+            for j in list2:
+                smallest_distance = min(smallest_distance, abs(i-j))
+            sum_ = sum_ + smallest_distance
+        return sum_/len(list1)
+
+    avg = _smallest_cooc_distances(l1, l2) + _smallest_cooc_distances(l2, l1)
+
+    return avg
 
 def _find_all(text, substring):
     loc = text.find(substring)
@@ -221,7 +234,11 @@ def _find_all(text, substring):
         return [loc] + [loc+i+1 for i in sub_locs]
 
 def cooccurence_similarity_matrix(text, wordlist):
-    score_func = lambda x,y: _cooccurence_score(text, wordlist[int(x)], wordlist[int(y)])
+    """ 
+    Finds the cooccurence score of every pair of words. Currently it 
+    uses a heuristic, might change to a more robust method later on.
+    """
+    score_func = lambda x,y: _cooccurence_score2(text, wordlist[int(x)], wordlist[int(y)])
     vscore_func = np.vectorize(score_func)
     return np.fromfunction(vscore_func, shape=[len(wordlist)]*2)
 

@@ -24,7 +24,8 @@ class Wordmesh():
     def __init__(self, text, dimensions=(500, 900),
                  keyword_extractor='textrank', num_keywords=35,
                  lemmatize=True, pos_filter=None, 
-                 extract_ngrams=True, filter_numbers=True):
+                 extract_ngrams=True, filter_numbers=True,
+                 filter_stopwords=True):
              
         """Wordmesh object for generating and drawing wordmeshes/wordclouds.
         
@@ -55,12 +56,13 @@ class Wordmesh():
             keyword_extractor has been set to 'tf'.
             
         extract_ngrams : bool, optional
-            Whether 2 or 3 grams should be extracted.
+            Whether bi or tri-grams should be extracted.
         
         filter_numbers : bool, optional
-            Whether extracted keywords can be numbers.
+            Whether numbers should be filtered out
             
-            
+        filter_stopwords: bool, optional
+            Whether stopwords should be filtered out
         Returns
         -------
         Wordmesh
@@ -96,6 +98,7 @@ class Wordmesh():
         self.extract_ngrams = extract_ngrams
         self.num_keywords = num_keywords
         self.filter_numbers = filter_numbers
+        self.filter_stopwords = filter_stopwords
         self.apply_delaunay = True
         self._extract_keywords()
         self.set_fontsize()
@@ -110,12 +113,14 @@ class Wordmesh():
             extract_terms_by_frequency(self.text, self.num_keywords, 
                                        self.pos_filter, self.filter_numbers, 
                                        self.extract_ngrams,
-                                       lemmatize=self.lemmatize)
+                                       lemmatize=self.lemmatize,
+                                       filter_stopwords = self.filter_stopwords)
         else:
             self.keywords, self.scores, self.pos_tags, n_kw = \
             extract_terms_by_score(self.text, self.keyword_extractor,
                                    self.num_keywords, self.extract_ngrams,
-                                   lemmatize=self.lemmatize)
+                                   lemmatize=self.lemmatize,
+                                   filter_stopwords = self.filter_stopwords)
         #self.normalized_keywords are all lemmatized if self.lemmatize is True,
         #unlike self.keywords which contain capitalized named entities
         self.normalized_keywords = n_kw
@@ -229,7 +234,7 @@ class Wordmesh():
             
             assert colorscale in ['Greys','YlGnBu', 'Greens', 'YlOrRd', 
                                   'Bluered', 'RdBu', 'Reds', 'Blues']
-            colors = scales[colorscale]
+            colors = scales[colorscale].copy()
             colors.reverse()
             
             #The keywords are binned based on their scores

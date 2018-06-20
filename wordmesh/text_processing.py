@@ -8,7 +8,7 @@ Created on Sun Jun 10 02:56:08 2018
 #Will throw an error if language model has not been downloaded
 try:
     import en_core_web_md
-    nlp = en_core_web_md.load()
+    NLP = en_core_web_md.load()
 except ModuleNotFoundError as e:
     msg = 'word-mesh relies on spaCy\'s pretrained language models '\
     'for tokenization, POS tagging and accessing word embeddings. \n\n'\
@@ -16,10 +16,15 @@ except ModuleNotFoundError as e:
     'given on: \n\nhttps://spacy.io/usage/models \n'
     raise Exception(msg).with_traceback(e.__traceback__) 
 
+import os
 import textacy
 from textacy.extract import named_entities
 from textacy.keyterms import sgrank,key_terms_from_semantic_network
 import numpy as np
+
+
+FILE = os.path.dirname(__file__)
+STOPWORDS = set(map(str.strip, open(os.path.join(FILE,'stopwords.txt')).readlines()))
 
 def _text_preprocessing(text):
     """
@@ -45,19 +50,35 @@ def _text_postprocessing(doc, keywords):
     
     return keywords
 
-def extract_terms_by_score(text, algorithm, num_terms, extract_ngrams, ngrams=(1,2), lemmatize=True):
+def _filter(keywords, scores, filter_stopwords):
+    #temporary -PRON- and stopwords filter
+    #stopwords are allowed in multigrams
+    tempkw, temps = [],[]
+    stopwords = STOPWORDS if filter_stopwords else set()
+    for i,kw in enumerate(keywords):
+        if kw.find('-PRON-')==-1 and (kw not in stopwords) and (kw!=''):
+            tempkw.append(kw)
+            temps.append(scores[i])
+    
+    return tempkw, temps
+
+def extract_terms_by_score(text, algorithm, num_terms, extract_ngrams, 
+                           ngrams=(1,2), lemmatize=True, filter_stopwords=True):
     
     if lemmatize:
         normalize = 'lemma'
     else :
         normalize = None
+        
     #convert raw text into spaCy doc
     text = _text_preprocessing(text)
-    doc = textacy.Doc(text, lang=nlp)
+    doc = textacy.Doc(text, lang=NLP)
     
     if algorithm=='sgrank':
         ngrams = ngrams if extract_ngrams else (1,)
-        keywords_scores = sgrank(doc, normalize=normalize, ngrams=ngrams, n_keyterms=num_terms)
+        keywords_scores = sgrank(doc, normalize=normalize, 
+                                 ngrams=ngrams, n_keyterms=num_terms)
+        
     elif (algorithm=='pagerank') | (algorithm=='textrank'):
         keywords_scores = key_terms_from_semantic_network(doc, 
                                                           normalize=normalize,
@@ -79,16 +100,7 @@ def extract_terms_by_score(text, algorithm, num_terms, extract_ngrams, ngrams=(1
     keywords = [i[0] for i in keywords_scores]
     scores = [i[1] for i in keywords_scores]
 
-    #temporary -PRON- filter
-    tempkw = []
-    temps = []
-    for i,kw in enumerate(keywords):
-        if kw.find('-PRON-')==-1:
-            tempkw.append(kw)
-            temps.append(scores[i])
-    keywords = tempkw
-    scores = temps
-    
+    keywords, scores = _filter(keywords, scores, filter_stopwords)
     
     scores = np.array(scores)
     #get pos tags for keywords, if keywords are ngrams, the 
@@ -135,7 +147,8 @@ def extract_terms_by_frequency(text,
                                pos_filter=['NOUN','ADJ','PROPN'],
                                filter_nums=True, 
                                extract_ngrams = True,
-                               ngrams=(1,2), lemmatize=True):
+                               ngrams=(1,2), lemmatize=True,
+                               filter_stopwords=True):
     """
     pos_filter : {'NOUN','PROPN','ADJ','VERB','ADV','SYM',PUNCT'}
     """
@@ -146,7 +159,7 @@ def extract_terms_by_frequency(text,
         
     #convert raw text into spaCy doc
     text = _text_preprocessing(text)
-    doc = textacy.Doc(text, lang=nlp)
+    doc = textacy.Doc(text, lang=NLP)
     
     #get the frequencies of the filtered terms
     ngrams = ngrams if extract_ngrams else (1,)
@@ -165,23 +178,25 @@ def extract_terms_by_frequency(text,
     
     #sort the terms based on the frequencies and 
     #choose the top num_terms terms
+    #NOTE: lots of redundant code here, cleanup required
     frequencies = list(frequencies.items())
 
-    #temporary -PRON- filter
-    temp = []
-    for tup in frequencies:
-        if tup[0].find('-PRON-')==-1 and tup[0]!='':
-            temp.append(tup)
-    frequencies = temp
+    keywords = [tup[0] for tup in frequencies]
+    scores = [tup[1] for tup in frequencies]
     
+    #applying filter
+    keywords,scores = _filter(keywords, scores, filter_stopwords)
+    
+    
+    frequencies = list(zip(keywords,scores))
     frequencies.sort(key=lambda x: x[1], reverse=True)
     top_terms = frequencies[:num_terms]
     
     keywords = [tup[0] for tup in top_terms]
     scores = np.array([tup[1] for tup in top_terms])
     
-    #get pos tags for keywords, if keywords are ngrams, the 
-    #pos tag of the last word in the ngram is picked
+    #get pos tags for keywords, if keywords are multi-grams, the 
+    #pos tag of the last word in the multi-gram is picked
     ending_tokens = [ngram.split(' ')[-1] for ngram in keywords]
     mapping = _get_pos_mapping(doc, normalize)
     pos_tags = [mapping[end] for end in ending_tokens]
@@ -193,8 +208,9 @@ def extract_terms_by_frequency(text,
             
 def get_semantic_similarity_matrix(keywords):
     text = ' '.join(keywords)
-    doc = textacy.Doc(text, lang=nlp)
+    doc = textacy.Doc(text, lang=NLP)
     
+    #split the doc into a list of spaCy's 'spans'
     spans = []
     i=0
     for term in keywords:
@@ -202,6 +218,7 @@ def get_semantic_similarity_matrix(keywords):
         spans.append(doc[i:i+delta])
         i = i+delta
     
+    #find the similarity between each pair of spans
     similarity_scores = []
     for span1 in spans:
         t1_scores = []
@@ -209,5 +226,6 @@ def get_semantic_similarity_matrix(keywords):
             t1_scores.append(span1.similarity(span2))
         similarity_scores.append(t1_scores)
         
+    #the values of the returned matrix vary from 0 to 1,
+    #a smaller number means that the words are similar in meaning
     return (1-np.array(similarity_scores))
-    
