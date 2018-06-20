@@ -14,22 +14,11 @@ import plotly.graph_objs as go
 import matplotlib.pyplot as plt
 plt.ioff()
 
-#current_path = os.path.dirname(__file__)
-#if not (os.path.isdir(os.path.join(current_path, 'tokenizers'))):
-#    print('Downloading nltk resource required for POS tagging...')
-#    nltk.download('punkt', download_dir=current_path, quiet=True)
-
-
-
 RELATIONSHIP_METRICS = ['cooccurence']
 DISCRETE_PROPERTIES = ['POS']
-#FONTSIZE_BBW = 0.17
-#FONTSIZE_BBH = 0.25
 PLOTLY_FONTSIZE_BBW = 0.18
 PLOTLY_FONTSIZE_BBH = 0.28
 
-#MPL_FONTSIZE_BBW = 0.005405405405405406
-#MPL_FONTSIZE_BBH = 0.002
 
 class PlotlyVisualizer():
     
@@ -69,7 +58,7 @@ class PlotlyVisualizer():
         y_top = np.max((coordinates[:,1]+bbd[:,1]/2))
         
         zoom = max((x_right-x_left)/self.width, (y_top-y_bottom)/self.height)
-        return zoom*1.1 if zoom<1 else zoom*0.9
+        return zoom*1.1 
     
     def get_bb_dimensions(self):
     
@@ -219,7 +208,7 @@ def _cooccurence_score(text, word1, word2):
     square_sum =0
     for i in l1:
         for j in l2:
-            square_sum = square_sum + (i-j)**2
+            square_sum = square_sum + abs(i-j)
 
     return (square_sum**(1/2))/(len(l1)*len(l2)+1)
 

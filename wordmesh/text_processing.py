@@ -6,7 +6,15 @@ Created on Sun Jun 10 02:56:08 2018
 @author: mukund
 """
 #Will throw an error if language model has not been downloaded
-import en_core_web_md
+try:
+    import en_core_web_md
+    nlp = en_core_web_md.load()
+except ModuleNotFoundError as e:
+    msg = 'word-mesh relies on spaCy\'s pretrained language models '\
+    'for tokenization, POS tagging and accessing word embeddings. \n\n'\
+    'Download the \'en_core_web_md\' model by following the instructions '\
+    'given on: \n\nhttps://spacy.io/usage/models \n'
+    raise Exception(msg).with_traceback(e.__traceback__) 
 
 import textacy
 from textacy.extract import named_entities
@@ -45,7 +53,7 @@ def extract_terms_by_score(text, algorithm, num_terms, extract_ngrams, ngrams=(1
         normalize = None
     #convert raw text into spaCy doc
     text = _text_preprocessing(text)
-    doc = textacy.Doc(text, lang='en_core_web_md')
+    doc = textacy.Doc(text, lang=nlp)
     
     if algorithm=='sgrank':
         ngrams = ngrams if extract_ngrams else (1,)
@@ -138,7 +146,7 @@ def extract_terms_by_frequency(text,
         
     #convert raw text into spaCy doc
     text = _text_preprocessing(text)
-    doc = textacy.Doc(text, lang='en')
+    doc = textacy.Doc(text, lang=nlp)
     
     #get the frequencies of the filtered terms
     ngrams = ngrams if extract_ngrams else (1,)
@@ -162,7 +170,7 @@ def extract_terms_by_frequency(text,
     #temporary -PRON- filter
     temp = []
     for tup in frequencies:
-        if tup[0].find('-PRON-')==-1:
+        if tup[0].find('-PRON-')==-1 and tup[0]!='':
             temp.append(tup)
     frequencies = temp
     
@@ -183,4 +191,23 @@ def extract_terms_by_frequency(text,
     return keywords, scores, pos_tags, normalized_keywords
     
             
+def get_semantic_similarity_matrix(keywords):
+    text = ' '.join(keywords)
+    doc = textacy.Doc(text, lang=nlp)
+    
+    spans = []
+    i=0
+    for term in keywords:
+        delta = len(term.split(' '))
+        spans.append(doc[i:i+delta])
+        i = i+delta
+    
+    similarity_scores = []
+    for span1 in spans:
+        t1_scores = []
+        for i,span2 in enumerate(spans):
+            t1_scores.append(span1.similarity(span2))
+        similarity_scores.append(t1_scores)
+        
+    return (1-np.array(similarity_scores))
     

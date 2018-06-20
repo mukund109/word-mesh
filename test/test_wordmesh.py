@@ -29,23 +29,15 @@ class TestWordmesh(unittest.TestCase):
         
 if __name__ == '__main__':
     #unittest.main()
-#    wm = Wordmesh(test_text, pos_filter=['NOUN','ADJ','VERB','PROPN'], 
-#                  keyword_extractor='textrank', extract_ngrams=False, num_keywords=70)
-#    print(wm.keywords)
-#    wm.set_clustering_criteria(by='cooccurence')
-#    wm.set_fontcolor(by='pos_tag')
-#    wm.generate_embeddings()
-#    wm.save_as_html()
-#    wm.save_as_html(filename='animated',force_directed_animation=True)
     with open('sample_speech.txt') as f:
          trump_text = f.read()
         
-    wm = Wordmesh(trump_text, dimensions=(900, 1500), pos_filter=['ADJ'],keyword_extractor='tf', 
-                  extract_ngrams=False, num_keywords=80, lemmatize=False)
+    wm = Wordmesh(trump_text, dimensions=(900, 1500), keyword_extractor='bestcoverage', 
+                  extract_ngrams=False, num_keywords=70, lemmatize=True)
     
-    wm.set_clustering_criteria('scores')
+    wm.set_clustering_criteria('cooccurence')
     wm.set_fontsize('scores')
-    wm.set_fontcolor('scores','Reds')
+    wm.set_fontcolor('scores','Blues')
     wm.generate_embeddings()
-    wm.save_as_html(force_directed_animation=True)
+    wm.save_as_html(force_directed_animation=False)
     print('done')

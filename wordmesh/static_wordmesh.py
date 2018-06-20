@@ -5,7 +5,8 @@ Created on Sun May 27 02:20:39 2018
 
 @author: mukund
 """
-from text_processing import extract_terms_by_frequency, extract_terms_by_score, normalize_text
+from text_processing import extract_terms_by_frequency, extract_terms_by_score
+from text_processing import normalize_text, get_semantic_similarity_matrix
 from utils import cooccurence_similarity_matrix as csm
 from utils import regularize
 import numpy as np
@@ -17,7 +18,7 @@ import colorlover as cl
 FONTSIZE_REG_FACTOR = 3
 CLUSTER_REG_FACTOR = 4
 NUM_ITERS = 100
-SIMILARITY_MEAN = 500
+SIMILARITY_MEAN = 400
 
 class Wordmesh():
     def __init__(self, text, dimensions=(500, 900),
@@ -66,6 +67,8 @@ class Wordmesh():
             A word mesh object 
         
         """
+        if (keyword_extractor=='divrank'):
+            raise NotImplementedError('divrank is currently unstable')
         #The pos_filer has only been implemented for 'tf' based extraction
         if (keyword_extractor!='tf') and (pos_filter is not None):
             
@@ -73,7 +76,7 @@ class Wordmesh():
             'based keyword extractor. This is an issue with textacy' \
             'and will be fixed in the future'
 
-            raise NotImplementedError()
+            raise NotImplementedError(msg)
         elif pos_filter is None:  
             pos_filter = ['NOUN','ADJ','PROPN']
             
@@ -256,7 +259,7 @@ class Wordmesh():
         text i.e. the 'cooccurence' criteria is used for clustering
         
         The following pre-defined criteria can be used: 'cooccurence',
-        'semantic_similarity', 'pos_tag'
+        'meaning', 'pos_tag'
         
         You can also define a custom criteria
         
@@ -292,6 +295,9 @@ class Wordmesh():
         elif by=='scores':
             mat = np.outer(self.scores, self.scores.T)
             sm = 1/np.absolute(mat-(mat**(1/16)).mean())
+            
+        elif by=='meaning':
+            sm = get_semantic_similarity_matrix(self.keywords)
         else:
             raise ValueError()
             
@@ -300,13 +306,13 @@ class Wordmesh():
             shape = sm.shape
             temp = regularize(sm.flatten(), CLUSTER_REG_FACTOR)
             sm = temp.reshape(shape)
-        
-        #normalize
+            
+        #standardise
         sm = sm*SIMILARITY_MEAN/np.mean(sm)
         
+
         self.similarity_matrix= sm
-        
-        return self.similarity_matrix
+
     
     def generate_embeddings(self):
         self._generate_embeddings()
