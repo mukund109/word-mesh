@@ -22,7 +22,7 @@ SIMILARITY_MEAN = 400
 
 class Wordmesh():
     def __init__(self, text, dimensions=(500, 900),
-                 keyword_extractor='textrank', num_keywords=35,
+                 keyword_extractor='textrank', num_keywords=35, 
                  lemmatize=True, pos_filter=None, 
                  extract_ngrams=True, filter_numbers=True,
                  filter_stopwords=True):
@@ -101,6 +101,7 @@ class Wordmesh():
         self.filter_stopwords = filter_stopwords
         self.apply_delaunay = True
         self._extract_keywords()
+        self.set_visualization_params(dimensions=dimensions)
         self.set_fontsize()
         self.set_fontcolor()
         self.set_clustering_criteria()
@@ -183,6 +184,9 @@ class Wordmesh():
         
         #normalize
         self.fontsizes_norm = self.fontsizes_norm/self.fontsizes_norm.sum()
+        
+        #raise flag indicating that the fontsizes have been modified
+        self._flag_fontsizes = True
 
             
     def set_fontcolor(self, by='random', colorscale='YlGnBu', 
@@ -252,9 +256,12 @@ class Wordmesh():
             
         else:
             raise ValueError()
+            
+        #raise flag to indicate that the fontcolors have been modified
+        self._flag_fontcolors = True
 
             
-    def set_clustering_criteria(self, by='cooccurence', 
+    def set_clustering_criteria(self, by='random', 
                           custom_similarity_matrix=None, 
                           apply_regularization=True):
         """
@@ -287,15 +294,14 @@ class Wordmesh():
             num_keywords).
         """
         self.normalized_text = normalize_text(self.text)
+        
         if by=='cooccurence':
             sm = csm(self.normalized_text,
                                          self.normalized_keywords)
         elif by=='random':
             num_kw = len(self.keywords)
-            sm = np.full((num_kw,num_kw), 240)
+            sm = np.ones((num_kw,num_kw))
             self.apply_delaunay = False
-            self.similarity_matrix= sm
-            return sm
         
         elif by=='scores':
             mat = np.outer(self.scores, self.scores.T)
@@ -315,35 +321,51 @@ class Wordmesh():
         #standardise
         sm = sm*SIMILARITY_MEAN/np.mean(sm)
         
-
         self.similarity_matrix= sm
+        
+        #raise a flag indicating that the clustering criteria has been modified
+        self._flag_clustering_criteria = True
 
-    
+    def set_visualization_params(self, bg_color='black', dimensions=None):
+        """
+        Set other visualization parameters
+        """
+        self.bg_color = bg_color
+        if dimensions is not None:
+            self.resolution = dimensions
+        self._flag_vis = True
+        
     def generate_embeddings(self):
         self._generate_embeddings()
     
-    def _generate_embeddings(self, store_as_attribute=True):
-        mds = MDS(2, dissimilarity='precomputed').\
-                             fit_transform(self.similarity_matrix)
-                           
-        self._visualizer = PlotlyVisualizer(words = self.keywords,
-                                            fontsizes_norm =self.fontsizes_norm, 
-                                            height = self.resolution[0],
-                                            width = self.resolution[1], 
-                                            textcolors=self.fontcolors)
+    def _generate_embeddings(self):
         
-        bbd = self._visualizer.bounding_box_dimensions
-        
-        fdm = ForceDirectedModel(mds, bbd, num_iters=NUM_ITERS,
-                                 apply_delaunay=self.apply_delaunay)
-        self.force_directed_model = fdm
-        
-        if store_as_attribute:
-            self.embeddings = fdm.equilibrium_position()
-            self._bounding_box_width_height = bbd
+        if self._flag_clustering_criteria:
+            mds = MDS(2, dissimilarity='precomputed').\
+                                 fit_transform(self.similarity_matrix)
             self._mds = mds
+            
+        if self._flag_fontsizes or self._flag_fontcolors or self._flag_vis:
+            self._visualizer = PlotlyVisualizer(words = self.keywords,
+                                                fontsizes_norm =self.fontsizes_norm, 
+                                                height = self.resolution[0],
+                                                width = self.resolution[1], 
+                                                textcolors=self.fontcolors,
+                                                bg_color = self.bg_color)
+            self._bounding_box_width_height = self._visualizer.bounding_box_dimensions
         
-        return fdm.equilibrium_position()
+        if self._flag_fontsizes or self._flag_clustering_criteria:
+            bbd = self._bounding_box_width_height
+            fdm = ForceDirectedModel(self._mds, bbd, num_iters=NUM_ITERS,
+                                     apply_delaunay=self.apply_delaunay)
+            self.force_directed_model = fdm
+            self.embeddings = fdm.equilibrium_position()
+            
+        #turn off all flags
+        self._flag_clustering_criteria = False
+        self._flag_fontsizes = False
+        self._flag_fontcolors = False
+
         
     def _get_all_fditerations(self, num_slides=100):
         all_pos = self.force_directed_model.all_centered_positions
@@ -362,9 +384,8 @@ class Wordmesh():
         """
         Temporary
         """  
-        try:
-            self._visualizer
-        except AttributeError:
+        #generate embeddings if any of the wordmesh parameters have been modified
+        if self._flag_clustering_criteria or self._flag_fontsizes or self._flag_fontcolors or self._flag_vis:
             self.generate_embeddings()
             
         if force_directed_animation:
