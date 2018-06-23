@@ -22,7 +22,8 @@ class PlotlyVisualizer():
                  filename='temp-plot.html', title=None, textcolors='white',
                  hovertext=None, axis_visible=False, bg_color='black', 
                  title_fontcolor='white', title_fontsize='auto', 
-                 title_font_family='Courier New, monospace', bb_padding=0.05):
+                 title_font_family='Courier New, monospace', bb_padding=0.05,
+                 boundary_padding_factor=1.1):
         
         """
         Parameters
@@ -41,6 +42,7 @@ class PlotlyVisualizer():
         self.title_fontsize = title_fontsize
         self.title_font_family = title_font_family
         self.padding = bb_padding
+        self.boundary_padding = boundary_padding_factor
         self.bounding_box_dimensions, self.real_fontsizes = self.get_bb_dimensions()
         
         
@@ -54,7 +56,7 @@ class PlotlyVisualizer():
         y_top = np.max((coordinates[:,1]+bbd[:,1]/2))
         
         zoom = max((x_right-x_left)/self.width, (y_top-y_bottom)/self.height)
-        return zoom*1.1 
+        return zoom*self.boundary_padding
     
     def get_bb_dimensions(self):
     
@@ -141,9 +143,12 @@ class PlotlyVisualizer():
                     legendgroup = legendgroup,
                     name = legendgroup,
             
-                    #Assigns id labels to each datum. These ids for object 
-                    #constancy of data points during animation. 
-                    ids = self.words,
+                    #'ids' assigns id labels to each datum. These ids can be used
+                    #for object constancy of data points during animation. 
+                    #However, the following line of code has the effect of 
+                    #not displaying duplicate keywords which is allowed
+                    #in a LabelledWordmesh object.
+                    #ids = self.words,
             
                     x = coordinates[:,0],
                     y = coordinates[:,1],
@@ -188,7 +193,7 @@ class PlotlyVisualizer():
 
             if autozoom:
                 zoom = self._get_zoom(coordinates)
-            traces = [self._get_trace(coordinates, zoom=zoom)]
+            traces = [self._get_trace(coordinates, zoom=zoom*self.boundary_padding)]
             
         layout = self._get_layout(labels, zoom=zoom)
             
@@ -211,19 +216,18 @@ def _cooccurence_score(text, word1, word2):
 def _cooccurence_score2(text, word1, word2):
     l1 = _find_all(text, word1)
     l2 = _find_all(text, word2)
-    
-    def _smallest_cooc_distances(list1, list2):
-        smallest_distance = len(text)
-        sum_=0
-        for i in list1:
-            for j in list2:
-                smallest_distance = min(smallest_distance, abs(i-j))
-            sum_ = sum_ + smallest_distance
-        return sum_/len(list1)
-
-    avg = _smallest_cooc_distances(l1, l2) + _smallest_cooc_distances(l2, l1)
-
+    avg = _smallest_cooc_distances(l1, l2, len(text)) + \
+                                    _smallest_cooc_distances(l2, l1, len(text))
     return avg
+
+def _smallest_cooc_distances(list1, list2, distance_upper_bound):
+    smallest_distance = distance_upper_bound
+    sum_=0
+    for i in list1:
+        for j in list2:
+            smallest_distance = min(smallest_distance, abs(i-j))
+        sum_ = sum_ + smallest_distance
+    return sum_/len(list1)
 
 def _find_all(text, substring):
     loc = text.find(substring)
@@ -232,15 +236,42 @@ def _find_all(text, substring):
     else:
         sub_locs = _find_all(text[loc+1:], substring)
         return [loc] + [loc+i+1 for i in sub_locs]
+    
+def _find_all_labelled(labelled_text, substring, substring_label):
+    start = 0
+    locations = []
+    for label, text in labelled_text:
+        if label==substring_label:
+            loc = [start+i for i in _find_all(text, substring)]
+            locations += loc
+        start += len(text)
+    
+    return locations, start
 
-def cooccurence_similarity_matrix(text, wordlist):
+def _cooccurence_score_labelled(labelled_text, word1, word2, label1, label2):
+    l1,_ = _find_all_labelled(labelled_text, word1, label1)
+    l2,text_length = _find_all_labelled(labelled_text, word2, label2)
+      
+    avg = _smallest_cooc_distances(l1, l2, text_length)+_smallest_cooc_distances(l2, l1, text_length)
+    return avg
+    
+def cooccurence_similarity_matrix(text, wordlist, labelled=False, labels=None):
     """ 
     Finds the cooccurence score of every pair of words. Currently it 
     uses a heuristic, might change to a more robust method later on.
     """
-    score_func = lambda x,y: _cooccurence_score2(text, wordlist[int(x)], wordlist[int(y)])
-    vscore_func = np.vectorize(score_func)
-    return np.fromfunction(vscore_func, shape=[len(wordlist)]*2)
+    if not labelled:
+        score_func = lambda x,y: _cooccurence_score2(text, wordlist[int(x)], wordlist[int(y)])
+        vscore_func = np.vectorize(score_func)
+        return np.fromfunction(vscore_func, shape=[len(wordlist)]*2)
+    else:
+        score_func = lambda x,y: _cooccurence_score_labelled(text, 
+                                                             wordlist[int(x)],
+                                                             wordlist[int(y)],
+                                                             labels[int(x)],
+                                                             labels[int(y)])
+        vscore_func = np.vectorize(score_func)
+        return np.fromfunction(vscore_func, shape=[len(wordlist)]*2)
 
 def regularize(arr, factor):
     arr = np.array(arr)

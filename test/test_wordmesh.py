@@ -10,7 +10,7 @@ import os
 
 sys.path.append(os.path.join(os.path.dirname(os.getcwd()), 'wordmesh'))
 
-from wordmesh import Wordmesh
+from wordmesh import Wordmesh, LabelledWordmesh
 import unittest
 
 with open('sample_text.txt') as f:
@@ -31,11 +31,13 @@ if __name__ == '__main__':
     #unittest.main()
     with open('sample_speech.txt') as f:
          trump_text = f.read()
-        
-    wm = Wordmesh(trump_text, dimensions=(900, 1500), keyword_extractor='textrank', 
-                  extract_ngrams=False, num_keywords=50, lemmatize=True)
-    wm.save_as_html(force_directed_animation=False)
-    #wm.set_clustering_criteria('cooccurence')
+         
+    labelled_text = [(i%3, trump_text[i*2500: i*2500 + 2500]) for i in range(6)]
+    wm = LabelledWordmesh(labelled_text, dimensions=(900, 1500), 
+                          keyword_extractor='textrank', 
+                          extract_ngrams=False, num_keywords=20, 
+                          lemmatize=True)
+    wm.set_clustering_criteria('meaning')
     #wm.set_fontsize('scores')
     #m.set_fontcolor('scores','YlGnBu')
     

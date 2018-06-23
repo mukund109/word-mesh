@@ -222,8 +222,11 @@ class Wordmesh():
         
         None
         """
-        
-        if by=='random':
+        if custom_colors is not None:
+            assert len(custom_colors) == len(self.keywords)
+            self.fontcolors = custom_colors
+            
+        elif by=='random':
             tone = np.random.choice(list(cl.flipper()['seq']['3'].keys()))
             self.fontcolors = np.random.choice(list(cl.flipper()['seq']\
                                                     ['3'][tone]), 
@@ -293,9 +296,10 @@ class Wordmesh():
             the similarity_matrix, i.e., a numpy array of shape (num_keywords, 
             num_keywords).
         """
-        self.normalized_text = normalize_text(self.text)
-        
-        if by=='cooccurence':
+        if custom_similarity_matrix is not None:
+            sm = custom_similarity_matrix
+        elif by=='cooccurence':
+            self.normalized_text = normalize_text(self.text)
             sm = csm(self.normalized_text,
                                          self.normalized_keywords)
         elif by=='random':
@@ -395,4 +399,129 @@ class Wordmesh():
         else:
             self._visualizer.save_wordmesh_as_html(self.embeddings, filename)
             
+class LabelledWordmesh(Wordmesh):
+            
+    def __init__(self, labelled_text, dimensions=(500, 900),
+                 keyword_extractor='textrank', num_keywords=35, 
+                 lemmatize=True, pos_filter=None, 
+                 extract_ngrams=True, filter_numbers=True,
+                 filter_stopwords=True):
+        """
+        Created a Wordmesh from labelled text. This can be used when the text 
+        is composed of several sections, each having a label associated with it.
+        It can also be used to compare two different sources of text. 
         
+        Parameters
+        ----------
+        
+        labelled_text: list of (int, str) 
+            Here the 'int' is the label associated with the text
+        
+        num_keywords: int , optional
+            The number of keywords for each label
+        
+        Returns
+        -------
+        Wordmesh
+        """
+        
+        assert len(labelled_text)!=0
+        
+        
+        #NOTE: code is not optimised, holds unnecessary copies of the text
+        #will need to use suitable data structures in the future
+        
+        #hold sections of the text with the same label
+        text_dict = dict()
+        for tup in labelled_text:
+            try:
+                text_dict[tup[0]] = text_dict[tup[0]] + tup[1]
+            except KeyError:
+                text_dict[tup[0]] = tup[1]
+            
+        self.text_dict = text_dict
+        
+        if len(text_dict)>8:
+            raise ValueError('Only up to 8 unique labels are allowed right now')
+        
+        super().__init__(labelled_text, dimensions=dimensions, 
+                 keyword_extractor=keyword_extractor,
+                 num_keywords=num_keywords, lemmatize=lemmatize,
+                 pos_filter=pos_filter, extract_ngrams=extract_ngrams,
+                 filter_numbers=filter_numbers, 
+                 filter_stopwords=filter_stopwords)
+        
+    def _extract_keywords(self):
+        
+        self.keywords, self.pos_tags, self.labels = [],[],[]
+        self.normalized_keywords = []
+        self.scores = np.array([])
+        
+        for key in self.text_dict:
+            if self.keyword_extractor == 'tf':
+                
+                kw, sc, pos, n_kw = \
+                extract_terms_by_frequency(self.text_dict[key], 
+                                           self.num_keywords, 
+                                           self.pos_filter, 
+                                           self.filter_numbers, 
+                                           self.extract_ngrams,
+                                           lemmatize=self.lemmatize,
+                                           filter_stopwords=self.filter_stopwords)
+            else:
+                kw, sc, pos, n_kw = \
+                extract_terms_by_score(self.text_dict[key], 
+                                       self.keyword_extractor,
+                                       self.num_keywords, 
+                                       self.extract_ngrams,
+                                       lemmatize=self.lemmatize,
+                                       filter_stopwords = self.filter_stopwords)
+                
+            self.keywords = self.keywords + kw
+            self.scores = np.concatenate((self.scores, sc))
+            self.pos_tags = self.pos_tags + pos
+            self.labels = self.labels + [key]*len(kw)
+            
+            #self.normalized_keywords are all lemmatized if self.lemmatize is True,
+            #unlike self.keywords which contain capitalized named entities
+            self.normalized_keywords = self.normalized_keywords + n_kw
+            
+
+    def set_fontcolor(self, by='label', colorscale='Set3', 
+                      custom_colors=None):
+        
+        if by=='label' and (custom_colors is None):
+            scales = cl.scales['8']['qual']
+            #All colorscales in 'scales.keys()' can be used
+            
+            assert colorscale in ['Pastel2','Paired','Pastel1',
+                                  'Set1','Set2','Set3','Dark2','Accent']
+            colors = scales[colorscale].copy()
+            colors.reverse()
+            
+            color_mapping={key:colors[i] for i,key in enumerate(self.text_dict)}
+            fontcolors =  list(map(color_mapping.get, self.labels))
+            
+            Wordmesh.set_fontcolor(self, custom_colors=fontcolors)
+            
+        else:
+            #change default colorscale to a quantitative one
+            colorscale = 'YlGnBu' if (colorscale=='Set3') else colorscale
+            Wordmesh.set_fontcolor(self, by=by, colorscale=colorscale,
+                                   custom_colors=custom_colors)
+        
+    def set_clustering_criteria(self, by='random', 
+                                custom_similarity_matrix=None, 
+                                apply_regularization=True):
+        
+        if by=='cooccurence':
+            self.normalized_text = [(key, normalize_text(self.text_dict[key])) for key in self.text_dict.keys()]
+            sm = csm(self.normalized_text, 
+                     self.normalized_keywords, 
+                     labelled=True, labels=self.labels)
+            Wordmesh.set_clustering_criteria(self, custom_similarity_matrix=sm, 
+                                             apply_regularization=apply_regularization)
+        else:
+            Wordmesh.set_clustering_criteria(self, by=by, 
+                                             custom_similarity_matrix=custom_similarity_matrix,
+                                             apply_regularization=apply_regularization)

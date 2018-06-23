@@ -138,7 +138,16 @@ def normalize_text(text):
     #convert raw text into spaCy doc
     text = _text_preprocessing(text)
     doc = textacy.Doc(text, lang='en')
-    lemmatized_strings = [token.lemma_ for token in doc]
+    
+    #pronouns need to be handled separately
+    #https://github.com/explosion/spaCy/issues/962
+    lemmatized_strings = []
+    for token in doc:
+        if token.lemma_ == '-PRON-':
+            lemmatized_strings.append(token.lower_)
+        else:
+            lemmatized_strings.append(token.lemma_)
+            
     normalized_text = ' '.join(lemmatized_strings)
     return normalized_text
 
