@@ -5,14 +5,14 @@ Created on Sun May 27 02:20:39 2018
 
 @author: mukund
 """
-from text_processing import extract_terms_by_frequency, extract_terms_by_score
-from text_processing import normalize_text, get_semantic_similarity_matrix
-from utils import cooccurence_similarity_matrix as csm
-from utils import regularize
+from .text_processing import extract_terms_by_frequency, extract_terms_by_score
+from .text_processing import normalize_text, get_semantic_similarity_matrix
+from .utils import cooccurence_similarity_matrix as csm
+from .utils import regularize
 import numpy as np
 from sklearn.manifold import MDS
-from utils import PlotlyVisualizer
-from force_directed_model import ForceDirectedModel
+from .utils import PlotlyVisualizer
+from .force_directed_model import ForceDirectedModel
 import colorlover as cl
 
 FONTSIZE_REG_FACTOR = 3
@@ -24,7 +24,7 @@ class Wordmesh():
     def __init__(self, text, dimensions=(500, 900),
                  keyword_extractor='textrank', num_keywords=35, 
                  lemmatize=True, pos_filter=None, 
-                 extract_ngrams=True, filter_numbers=True,
+                 extract_ngrams=False, filter_numbers=True,
                  filter_stopwords=True):
              
         """Wordmesh object for generating and drawing wordmeshes/wordclouds.
@@ -101,7 +101,7 @@ class Wordmesh():
         self.filter_stopwords = filter_stopwords
         self.apply_delaunay = True
         self._extract_keywords()
-        self.set_visualization_params(dimensions=dimensions)
+        self.set_visualization_params()
         self.set_fontsize()
         self.set_fontcolor()
         self.set_clustering_criteria()
@@ -211,11 +211,9 @@ class Wordmesh():
         colorscale: str or None, optional
             One of [Greys, YlGnBu, Greens, YlOrRd, Bluered, RdBu, Reds, Blues].
             When by=='scores', this will be used to determine the colorscale.
-        custom_colors : dictionary or None, optional
-            A dictionary with individual keywords as keys and font colors as
-            values (these should be RGB tuples). The dictionary should contain
-            all extracted keywords (that can be accessed through the keywords 
-            attribute). Extra words will be ignored
+        custom_colors : list of 3-tuple, optional
+            A list of RGB tuples. Each tuple corresponding to the color of
+            a keyword.
             
         Returns
         -------
@@ -224,7 +222,13 @@ class Wordmesh():
         """
         if custom_colors is not None:
             assert len(custom_colors) == len(self.keywords)
-            self.fontcolors = custom_colors
+            if isinstance(custom_colors[0], str):
+                self.fontcolors = custom_colors
+            else:
+                self.fontcolors = []
+                for rgb in custom_colors:
+                    assert len(rgb)==3
+                    self.fontcolors.append('rgb'+str(rgb))
             
         elif by=='random':
             tone = np.random.choice(list(cl.flipper()['seq']['3'].keys()))
@@ -330,13 +334,11 @@ class Wordmesh():
         #raise a flag indicating that the clustering criteria has been modified
         self._flag_clustering_criteria = True
 
-    def set_visualization_params(self, bg_color='black', dimensions=None):
+    def set_visualization_params(self, bg_color='black'):
         """
         Set other visualization parameters
         """
         self.bg_color = bg_color
-        if dimensions is not None:
-            self.resolution = dimensions
         self._flag_vis = True
         
     def generate_embeddings(self):
@@ -384,7 +386,8 @@ class Wordmesh():
         return np.stack(slides)
         
 
-    def save_as_html(self, filename='wordmesh.html', force_directed_animation=False):
+    def save_as_html(self, filename='wordmesh.html', 
+                     force_directed_animation=False, notebook_mode=False):
         """
         Temporary
         """  
@@ -395,16 +398,18 @@ class Wordmesh():
         if force_directed_animation:
             all_positions = self._get_all_fditerations()
             self._visualizer.save_wordmesh_as_html(all_positions, filename, 
-                                                   animate=True)
+                                                   animate=True,
+                                                   notebook_mode=notebook_mode)
         else:
-            self._visualizer.save_wordmesh_as_html(self.embeddings, filename)
+            self._visualizer.save_wordmesh_as_html(self.embeddings, filename,
+                                                   notebook_mode=notebook_mode)
             
 class LabelledWordmesh(Wordmesh):
             
     def __init__(self, labelled_text, dimensions=(500, 900),
                  keyword_extractor='textrank', num_keywords=35, 
                  lemmatize=True, pos_filter=None, 
-                 extract_ngrams=True, filter_numbers=True,
+                 extract_ngrams=False, filter_numbers=True,
                  filter_stopwords=True):
         """
         Created a Wordmesh from labelled text. This can be used when the text 
@@ -510,7 +515,7 @@ class LabelledWordmesh(Wordmesh):
             Wordmesh.set_fontcolor(self, by=by, colorscale=colorscale,
                                    custom_colors=custom_colors)
         
-    def set_clustering_criteria(self, by='random', 
+    def set_clustering_criteria(self, by='cooccurence', 
                                 custom_similarity_matrix=None, 
                                 apply_regularization=True):
         

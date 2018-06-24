@@ -41,5 +41,4 @@ if __name__ == '__main__':
     #wm.set_fontsize('scores')
     #m.set_fontcolor('scores','YlGnBu')
     
-    
     print('done')

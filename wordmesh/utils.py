@@ -9,8 +9,6 @@ Created on Mon May 28 04:26:25 2018
 import numpy as np
 import plotly.offline as py
 import plotly.graph_objs as go
-import matplotlib.pyplot as plt
-plt.ioff()
 
 PLOTLY_FONTSIZE_BBW = 0.18
 PLOTLY_FONTSIZE_BBH = 0.28
@@ -44,7 +42,6 @@ class PlotlyVisualizer():
         self.padding = bb_padding
         self.boundary_padding = boundary_padding_factor
         self.bounding_box_dimensions, self.real_fontsizes = self.get_bb_dimensions()
-        
         
 # fontsize*FONTSIZE_BBW = Width of the bounding box of each character in a plotly graph
     def _get_zoom(self, coordinates):
@@ -178,7 +175,7 @@ class PlotlyVisualizer():
         return figure
     
     def save_wordmesh_as_html(self, coordinates, filename='temp-plot.html', 
-                              animate=False, autozoom=True):
+                              animate=False, autozoom=True, notebook_mode=False):
 
         zoom = 1
         labels = ['default label']
@@ -193,12 +190,17 @@ class PlotlyVisualizer():
 
             if autozoom:
                 zoom = self._get_zoom(coordinates)
-            traces = [self._get_trace(coordinates, zoom=zoom*self.boundary_padding)]
+            traces = [self._get_trace(coordinates, zoom=zoom)]
             
         layout = self._get_layout(labels, zoom=zoom)
             
         fig = self.generate_figure(traces, labels, layout)
-        py.plot(fig, filename=filename, auto_open=False, show_link=False)
+        
+        if notebook_mode:
+            py.init_notebook_mode(connected=True)
+            py.iplot(fig, filename=filename, show_link=False)
+        else:
+            py.plot(fig, filename=filename, auto_open=False, show_link=False)
     
 
 def _cooccurence_score(text, word1, word2): 
