@@ -74,8 +74,8 @@ class Wordmesh():
         #The pos_filer has only been implemented for 'tf' based extraction
         if (keyword_extractor!='tf') and (pos_filter is not None):
             
-            msg = '\'pos_filter\' is only available for \'tf\'' \
-            'based keyword extractor. This is an issue with textacy' \
+            msg = '\'pos_filter\' is only available for \'tf\' ' +\
+            'based keyword extractor. This is an issue with textacy ' +\
             'and will be fixed in the future'
 
             raise NotImplementedError(msg)
@@ -84,9 +84,10 @@ class Wordmesh():
             
         #textacy's functions are unstable when the following condition is met
         if (keyword_extractor!='tf') and extract_ngrams:
-            msg = 'Currently, extracting ngrams using graph based methods ' \
-            'is not advisable. This is due to underlying issues ' \
-            'with textacy which will be fixed in the future.'
+            msg = 'Currently, extracting ngrams using graph based methods ' +\
+            'is not advisable. This is due to underlying issues ' +\
+            'with textacy which will be fixed in the future. '+\
+            'For now, you can set \'extract_ngrams\' to False.'
             raise NotImplementedError(msg)
             
             
@@ -151,8 +152,7 @@ class Wordmesh():
             between the numbers in the list and the extracted keywords (that 
             can be accessed through the keywords attribute). Note that this list
             is only used to calculate relative sizes, the actual sizes depend
-            on the visualization tool used. Alse it is advised that you turn 
-            regularizatin off when applying custom font sizes.
+            on the visualization tool used.
         apply_regularization : bool, optional
             Determines whether font sizes will be regularized to prevent extreme 
             values which might lead to a poor visualization
@@ -189,18 +189,17 @@ class Wordmesh():
         self._flag_fontsizes = True
 
             
-    def set_fontcolor(self, by='random', colorscale='YlGnBu', 
+    def set_fontcolor(self, by='scores', colorscale='YlGnBu', 
                       custom_colors=None):
         """
         This function can be used to pick a metric which decides the font color
-        for each extracted keyword. By default, the font size is assigned 
-        randomly 
+        for each extracted keyword. By default, the font color is assigned 
+        randomly in accordance with a particular 'colorscale'
         
         Fonts can be picked by: 'random', 'scores', 'pos_tag' None
         
-        You can also choose custom font colors by passing in a dictionary 
-        of word:fontcolor pairs using the argument custom_sizes, where 
-        fontcolor is an (R, G, B) tuple
+        You can also choose custom font colors by passing in a list of 
+        (R,G,B) tuples with values for each component falling between [0,255].
         
         Parameters
         ----------
@@ -261,6 +260,13 @@ class Wordmesh():
             mapping = {tag:c[i] for i,tag in enumerate(tags)}
             self.fontcolors = list(map(mapping.get, self.pos_tags))
             
+        elif by=='clustering_criteria':
+            mds = MDS(3, dissimilarity='precomputed').\
+                                 fit_transform(self.similarity_matrix)
+            mds = mds-mds.min()
+            mds = mds*205/mds.max() + 50
+            self.fontcolors = ['rgb'+str(tuple(rgb)) for rgb in mds]
+            
         else:
             raise ValueError()
             
@@ -268,7 +274,7 @@ class Wordmesh():
         self._flag_fontcolors = True
 
             
-    def set_clustering_criteria(self, by='random', 
+    def set_clustering_criteria(self, by='scores', 
                           custom_similarity_matrix=None, 
                           apply_regularization=True):
         """
@@ -278,7 +284,7 @@ class Wordmesh():
         text i.e. the 'cooccurence' criteria is used for clustering
         
         The following pre-defined criteria can be used: 'cooccurence',
-        'meaning', 'pos_tag'
+        'meaning', 'scores', 'random'
         
         You can also define a custom criteria
         
@@ -303,17 +309,20 @@ class Wordmesh():
         if custom_similarity_matrix is not None:
             sm = custom_similarity_matrix
         elif by=='cooccurence':
-            self.normalized_text = normalize_text(self.text)
+            self.normalized_text = normalize_text(self.text,
+                                                  lemmatize=self.lemmatize)
             sm = csm(self.normalized_text,
                                          self.normalized_keywords)
         elif by=='random':
             num_kw = len(self.keywords)
-            sm = np.ones((num_kw,num_kw))
+            sm = np.random.normal(400, 90, (num_kw,num_kw))
+            sm = 0.5*(sm + sm.T)
             self.apply_delaunay = False
         
         elif by=='scores':
             mat = np.outer(self.scores, self.scores.T)
-            sm = 1/np.absolute(mat-(mat**(1/16)).mean())
+            #sm = 1/np.absolute(mat-(mat**(1/16)).mean())
+            sm = np.absolute(mat.max()-mat) + 1
             
         elif by=='meaning':
             sm = get_semantic_similarity_matrix(self.keywords)
@@ -337,8 +346,21 @@ class Wordmesh():
     def set_visualization_params(self, bg_color='black'):
         """
         Set other visualization parameters
+        
+        Parameters
+        ----------
+        
+        bg_color: 3-tuple of int, optional
+            Sets the background color, takes in a tuple of (R,G,B) \
+            color components
         """
-        self.bg_color = bg_color
+        if isinstance(bg_color, str):
+            self.bg_color = bg_color
+        else:
+            assert(len(bg_color)==3)
+            self.bg_color = 'rgb'+str(bg_color)
+            
+            
         self._flag_vis = True
         
     def generate_embeddings(self):
@@ -494,7 +516,35 @@ class LabelledWordmesh(Wordmesh):
 
     def set_fontcolor(self, by='label', colorscale='Set3', 
                       custom_colors=None):
+        """
+        This function can be used to pick a metric which decides the font color
+        for each extracted keyword. By default, the font color is assigned 
+        according to the label of the keyword.
         
+        Fonts can be picked by: 'label', 'random', 'scores', 'pos_tag' None
+        
+        You can also choose custom font colors by passing in a dictionary 
+        of word:fontcolor pairs using the argument custom_sizes, where 
+        fontcolor is an (R, G, B) tuple
+        
+        Parameters
+        ----------
+        
+        by : str or None, optional
+            The metric used to assign font sizes. Can be None if custom colors 
+            are being used
+        colorscale: str or None, optional
+            One of [Greys, YlGnBu, Greens, YlOrRd, Bluered, RdBu, Reds, Blues].
+            When by=='scores', this will be used to determine the colorscale.
+        custom_colors : list of 3-tuple, optional
+            A list of RGB tuples. Each tuple corresponding to the color of
+            a keyword.
+            
+        Returns
+        -------
+        
+        None
+        """
         if by=='label' and (custom_colors is None):
             scales = cl.scales['8']['qual']
             #All colorscales in 'scales.keys()' can be used

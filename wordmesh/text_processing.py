@@ -7,8 +7,10 @@ Created on Sun Jun 10 02:56:08 2018
 """
 #Will throw an error if language model has not been downloaded
 try:
+    print('Loading spaCy\'s language model...')
     import en_core_web_md
     NLP = en_core_web_md.load()
+    print('Done')
 except ModuleNotFoundError as e:
     msg = 'word-mesh relies on spaCy\'s pretrained language models '\
     'for tokenization, POS tagging and accessing word embeddings. \n\n'\
@@ -25,6 +27,7 @@ import numpy as np
 
 FILE = os.path.dirname(__file__)
 STOPWORDS = set(map(str.strip, open(os.path.join(FILE,'stopwords.txt')).readlines()))
+NGRAM_LIMIT = 3
 
 def _text_preprocessing(text):
     """
@@ -50,16 +53,20 @@ def _text_postprocessing(doc, keywords):
     
     return keywords
 
-def _filter(keywords, scores, filter_stopwords):
-    #temporary -PRON- and stopwords filter
+def _filter(keywords, scores, filter_stopwords, num_terms):
+    #temporary -PRON-, stopwords and ngram filter
     #stopwords are allowed in multigrams
     tempkw, temps = [],[]
     stopwords = STOPWORDS if filter_stopwords else set()
     for i,kw in enumerate(keywords):
-        if kw.find('-PRON-')==-1 and (kw not in stopwords) and (kw!=''):
+        if kw.find('-PRON-')==-1 and (kw not in stopwords) \
+        and (kw!='') and (len(kw.split(' '))<=NGRAM_LIMIT):
             tempkw.append(kw)
             temps.append(scores[i])
     
+    if len(tempkw)>num_terms:
+        tempkw, temps = tempkw[:num_terms], temps[:num_terms]
+        
     return tempkw, temps
 
 def extract_terms_by_score(text, algorithm, num_terms, extract_ngrams, 
@@ -74,10 +81,12 @@ def extract_terms_by_score(text, algorithm, num_terms, extract_ngrams,
     text = _text_preprocessing(text)
     doc = textacy.Doc(text, lang=NLP)
     
+    #the number of extracted terms is twice num_keyterms since a lot of them 
+    #are filtered out by the filter
     if algorithm=='sgrank':
         ngrams = ngrams if extract_ngrams else (1,)
         keywords_scores = sgrank(doc, normalize=normalize, 
-                                 ngrams=ngrams, n_keyterms=num_terms)
+                                 ngrams=ngrams, n_keyterms=num_terms*2)
         
     elif (algorithm=='pagerank') | (algorithm=='textrank'):
         keywords_scores = key_terms_from_semantic_network(doc, 
@@ -86,7 +95,7 @@ def extract_terms_by_score(text, algorithm, num_terms, extract_ngrams,
                                                           window_width=5,
                                                           ranking_algo='pagerank',
                                                           join_key_words=extract_ngrams,
-                                                          n_keyterms=num_terms)
+                                                          n_keyterms=num_terms*2)
 
     else:
         keywords_scores = key_terms_from_semantic_network(doc,
@@ -95,12 +104,12 @@ def extract_terms_by_score(text, algorithm, num_terms, extract_ngrams,
                                                           window_width=5,
                                                           ranking_algo=algorithm,
                                                           join_key_words=extract_ngrams,
-                                                          n_keyterms=num_terms)
+                                                          n_keyterms=num_terms*2)
        
     keywords = [i[0] for i in keywords_scores]
     scores = [i[1] for i in keywords_scores]
 
-    keywords, scores = _filter(keywords, scores, filter_stopwords)
+    keywords, scores = _filter(keywords, scores, filter_stopwords, num_terms)
     
     scores = np.array(scores)
     #get pos tags for keywords, if keywords are ngrams, the 
@@ -134,10 +143,15 @@ def _get_frequency_mapping(doc):
     """
     doc.to_bag_of_terms(as_strings=True)
 
-def normalize_text(text):
+def normalize_text(text, lemmatize):
+    if not lemmatize:
+        return text
+    
+    text = _text_preprocessing(text)
+    
     #convert raw text into spaCy doc
     text = _text_preprocessing(text)
-    doc = textacy.Doc(text, lang='en')
+    doc = textacy.Doc(text, lang=NLP)
     
     #pronouns need to be handled separately
     #https://github.com/explosion/spaCy/issues/962
@@ -194,7 +208,7 @@ def extract_terms_by_frequency(text,
     scores = [tup[1] for tup in frequencies]
     
     #applying filter
-    keywords,scores = _filter(keywords, scores, filter_stopwords)
+    keywords,scores = _filter(keywords, scores, filter_stopwords, num_terms)
     
     
     frequencies = list(zip(keywords,scores))

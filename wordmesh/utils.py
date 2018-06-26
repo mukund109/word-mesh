@@ -10,8 +10,8 @@ import numpy as np
 import plotly.offline as py
 import plotly.graph_objs as go
 
-PLOTLY_FONTSIZE_BBW = 0.18
-PLOTLY_FONTSIZE_BBH = 0.28
+PLOTLY_FONTSIZE_BBW = 0.6
+PLOTLY_FONTSIZE_BBH = 0.972+0.088
 
 
 class PlotlyVisualizer():
@@ -20,7 +20,7 @@ class PlotlyVisualizer():
                  filename='temp-plot.html', title=None, textcolors='white',
                  hovertext=None, axis_visible=False, bg_color='black', 
                  title_fontcolor='white', title_fontsize='auto', 
-                 title_font_family='Courier New, monospace', bb_padding=0.05,
+                 title_font_family='Courier New, monospace', bb_padding=0.08,
                  boundary_padding_factor=1.1):
         
         """
@@ -54,25 +54,14 @@ class PlotlyVisualizer():
         
         zoom = max((x_right-x_left)/self.width, (y_top-y_bottom)/self.height)
         return zoom*self.boundary_padding
-    
+       
     def get_bb_dimensions(self):
-    
         
-        radius = min([self.height, self.width])/2
-        circle_area = 3.1415*radius*radius
-        ideal_area_per_word = circle_area/len(self.words)
-        
-        #the fontsizes are scaled such that the total area oocupied by the 
-        #keywords is equal to circle_area
         num_chars = np.array([len(word) for word in self.words])
-        current_area_per_word = ((self.fontsizes_norm**2)*num_chars).sum()
-    
-        prop_factor = ideal_area_per_word/current_area_per_word
-        square_side_length = self.fontsizes_norm*(prop_factor**(1/2))*4
-        
-        bb_widths = (0.6+self.padding)*square_side_length*num_chars
-        bb_heights = (0.972+0.088+self.padding*2)*square_side_length
-                     
+        square_side_length = self.fontsizes_norm*150*(len(self.words)**(1/2))
+
+        bb_widths = (PLOTLY_FONTSIZE_BBW+self.padding)*square_side_length*num_chars
+        bb_heights = (PLOTLY_FONTSIZE_BBH+self.padding*2)*square_side_length
         return np.array([bb_widths, bb_heights]).swapaxes(0, 1), square_side_length
     
     def _get_layout(self, labels=[], zoom=1):
@@ -229,6 +218,7 @@ def _smallest_cooc_distances(list1, list2, distance_upper_bound):
         for j in list2:
             smallest_distance = min(smallest_distance, abs(i-j))
         sum_ = sum_ + smallest_distance
+        
     return sum_/len(list1)
 
 def _find_all(text, substring):

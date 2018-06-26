@@ -27,6 +27,12 @@ class TestWordmesh(unittest.TestCase):
                           'turning', 'wild', 'goes', 'crafting compelling'], 
                          wm.keywords)
         
+    def test_lemmatized_find_all(self):
+        """
+        test if ALL the normalised_keywords can be found in the normalized_text
+        """
+        pass
+        
 if __name__ == '__main__':
     #unittest.main()
     with open('sample_speech.txt') as f:

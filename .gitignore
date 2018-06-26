@@ -107,6 +107,9 @@ wordmesh/tokenizers
 # TODO file
 TODO
 
+#for experimentation
+examples/Untitled.ipynb
+
 # Temporary plotly plots
 temp-plot.html
 wordmesh.html
