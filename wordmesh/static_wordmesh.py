@@ -14,6 +14,7 @@ from sklearn.manifold import MDS
 from .utils import PlotlyVisualizer
 from .force_directed_model import ForceDirectedModel
 import colorlover as cl
+import pandas as pd
 
 FONTSIZE_REG_FACTOR = 3
 CLUSTER_REG_FACTOR = 4
@@ -451,24 +452,26 @@ class LabelledWordmesh(Wordmesh):
         -------
         Wordmesh
         """
-        
-        assert len(labelled_text)!=0
-        
+        if not (isinstance(labelled_text, list) or isinstance(labelled_text, pd.DataFrame)):
+            raise ValueError('labelled_text can only be a list or a pandas \
+                             dataframe, not a {}'.format(type(labelled_text)))
+        if isinstance(labelled_text, list):
+            assert len(labelled_text)!=0
+            assert len(labelled_text[0])==2
+            labelled_text = pd.DataFrame(labelled_text, 
+                                         columns=['label','text'])
+            
+        assert labelled_text.shape[1]==2
+        assert (labelled_text.columns==['label','text']).all()
         
         #NOTE: code is not optimised, holds unnecessary copies of the text
         #will need to use suitable data structures in the future
         
-        #hold sections of the text with the same label
-        text_dict = dict()
-        for tup in labelled_text:
-            try:
-                text_dict[tup[0]] = text_dict[tup[0]] + tup[1]
-            except KeyError:
-                text_dict[tup[0]] = tup[1]
-            
-        self.text_dict = text_dict
+        labelled_text['text'] = labelled_text['text'] + ' \n '
+        #dicitonary of label:text
+        self.text_dict = labelled_text.groupby('label')['text'].sum().to_dict()
         
-        if len(text_dict)>8:
+        if len(self.text_dict)>8:
             raise ValueError('Only up to 8 unique labels are allowed right now')
         
         super().__init__(labelled_text, dimensions=dimensions, 
@@ -565,12 +568,18 @@ class LabelledWordmesh(Wordmesh):
             Wordmesh.set_fontcolor(self, by=by, colorscale=colorscale,
                                    custom_colors=custom_colors)
         
-    def set_clustering_criteria(self, by='cooccurence', 
+    def set_clustering_criteria(self, by='scores', 
                                 custom_similarity_matrix=None, 
                                 apply_regularization=True):
         
         if by=='cooccurence':
-            self.normalized_text = [(key, normalize_text(self.text_dict[key])) for key in self.text_dict.keys()]
+            
+            normalized = self.text
+            normalized['text'] = normalized['text']\
+            .apply(lambda x: normalize_text(x, lemmatize=self.lemmatize))
+            
+            self.normalized_text = list(normalized.itertuples(False, None))
+            
             sm = csm(self.normalized_text, 
                      self.normalized_keywords, 
                      labelled=True, labels=self.labels)
