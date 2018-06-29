@@ -20,16 +20,56 @@ FONTSIZE_REG_FACTOR = 3
 CLUSTER_REG_FACTOR = 4
 NUM_ITERS = 100
 SIMILARITY_MEAN = 400
-
+NOTEBOOK_MODE = False
+        
 class Wordmesh():
+    """
+    Wordmesh object for generating and drawing wordmeshes/wordclouds.
+    
+    Attributes
+    ----------
+    text : str
+        The text used to extract the keywords.
+        
+    keywords : list of str
+        The keywords extracted from the text.
+        
+    scores : numpy array
+        The scores assigned by the keyword extraction algorithm.
+        
+    pos_tags : list of str
+        The pos_tags corresponding to the keywords.
+        
+    embeddings : numpy array
+        An array of shape (num_keywords, 2), giving the locations of the 
+        keywords on the canvas.
+        
+    bounding_box_width_height : numpy array
+        An array of shape (num_keywords, 2) gives the width and height of
+        each keyword's bounding box. The coordinates of the centre of 
+        the box can be accessed through the 'embeddings' attribute.
+        
+    similarity_matrix : numpy array
+        The similarity matrix with shape (num_keywords, num_keywords), is 
+        proportional to the 'dissimilarity' between the ith and jth keywords. 
+        The matrix may have been regularized to prevent extreme values.
+        
+    fontsizes_norm : numpy array
+        The normalized fontsizes, the actual fontsizes depend on the 
+        visualization. These may have been regularized to avoid extreme values.
+        
+    fontcolors : list of str
+        The fontcolors as rgb strings. This format was chosen since it is 
+        supported by plotly.
+    
+    """
     def __init__(self, text, dimensions=(500, 900),
                  keyword_extractor='textrank', num_keywords=35, 
                  lemmatize=True, pos_filter=None, 
                  extract_ngrams=False, filter_numbers=True,
                  filter_stopwords=True):
              
-        """Wordmesh object for generating and drawing wordmeshes/wordclouds.
-        
+        """        
         Parameters
         ----------
         text : string
@@ -38,7 +78,7 @@ class Wordmesh():
         dimensions : tuple, optional 
             The desired dimensions (height, width) of the wordcloud in pixels.
             
-        keyword_extractor : {'textrank', 'sgrank', 'divrank', 'bestcoverage', 'tf'}, optional
+        keyword_extractor : {'textrank', 'sgrank', 'bestcoverage', 'tf'}, optional
             The algorithm used for keyword extraction. 'tf' refers to simple
             term frequency based extraction.
             
@@ -52,6 +92,7 @@ class Wordmesh():
             extracted from it
             
         pos_filter : list of str, optional
+            Filters out all keywords EXCEPT the ones with these pos tags.
             Supported pos tags-{'NOUN','PROPN','ADJ','VERB','ADV','SYM','PUNCT'}.
             A POS filter can be applied on the keywords ONLY when the 
             keyword_extractor has been set to 'tf'.
@@ -93,15 +134,15 @@ class Wordmesh():
             
             
         self.text = text
-        self.resolution = dimensions
-        self.lemmatize = lemmatize
-        self.keyword_extractor = keyword_extractor
-        self.pos_filter = pos_filter
-        self.extract_ngrams = extract_ngrams
-        self.num_keywords = num_keywords
-        self.filter_numbers = filter_numbers
-        self.filter_stopwords = filter_stopwords
-        self.apply_delaunay = True
+        self._resolution = dimensions
+        self._lemmatize = lemmatize
+        self._keyword_extractor = keyword_extractor
+        self._pos_filter = pos_filter
+        self._extract_ngrams = extract_ngrams
+        self._num_required_keywords = num_keywords
+        self._filter_numbers = filter_numbers
+        self._filter_stopwords = filter_stopwords
+        self._apply_delaunay = True
         self._extract_keywords()
         self.set_visualization_params()
         self.set_fontsize()
@@ -110,23 +151,23 @@ class Wordmesh():
 
     def _extract_keywords(self):
 
-        if self.keyword_extractor == 'tf':
+        if self._keyword_extractor == 'tf':
             
             self.keywords, self.scores, self.pos_tags, n_kw = \
-            extract_terms_by_frequency(self.text, self.num_keywords, 
-                                       self.pos_filter, self.filter_numbers, 
-                                       self.extract_ngrams,
-                                       lemmatize=self.lemmatize,
-                                       filter_stopwords = self.filter_stopwords)
+            extract_terms_by_frequency(self.text, self._num_required_keywords, 
+                                       self._pos_filter, self._filter_numbers, 
+                                       self._extract_ngrams,
+                                       lemmatize=self._lemmatize,
+                                       filter_stopwords = self._filter_stopwords)
         else:
             self.keywords, self.scores, self.pos_tags, n_kw = \
-            extract_terms_by_score(self.text, self.keyword_extractor,
-                                   self.num_keywords, self.extract_ngrams,
-                                   lemmatize=self.lemmatize,
-                                   filter_stopwords = self.filter_stopwords)
-        #self.normalized_keywords are all lemmatized if self.lemmatize is True,
+            extract_terms_by_score(self.text, self._keyword_extractor,
+                                   self._num_required_keywords, self._extract_ngrams,
+                                   lemmatize=self._lemmatize,
+                                   filter_stopwords = self._filter_stopwords)
+        #self._normalized_keywords are all lemmatized if self._lemmatize is True,
         #unlike self.keywords which contain capitalized named entities
-        self.normalized_keywords = n_kw
+        self._normalized_keywords = n_kw
             
 
     def set_fontsize(self, by='scores', custom_sizes=None, 
@@ -137,7 +178,7 @@ class Wordmesh():
         for each extracted keyword. The font size is directly 
         proportional to the 'scores' assigned by the keyword extractor. 
         
-        Fonts can be picked by: 'scores', 'word_frequency', 'constant', None
+        Fonts can be picked by: 'scores', 'constant', None
         
         You can also choose custom font sizes by passing in a dictionary 
         of word:fontsize pairs using the argument custom_sizes
@@ -195,12 +236,12 @@ class Wordmesh():
         """
         This function can be used to pick a metric which decides the font color
         for each extracted keyword. By default, the font color is assigned 
-        randomly in accordance with a particular 'colorscale'
+        based on the score of each keyword.
         
-        Fonts can be picked by: 'random', 'scores', 'pos_tag' None
+        Fonts can be picked by: 'random', 'scores', 'pos_tag', 'clustering_criteria'
         
         You can also choose custom font colors by passing in a list of 
-        (R,G,B) tuples with values for each component falling between [0,255].
+        (R,G,B) tuples with values for each component falling in [0,255].
         
         Parameters
         ----------
@@ -217,7 +258,6 @@ class Wordmesh():
             
         Returns
         -------
-        
         None
         """
         if custom_colors is not None:
@@ -281,13 +321,13 @@ class Wordmesh():
         """
         This function can be used to define the criteria for clustering of
         different keywords in the wordcloud. By default, clustering is done
-        based on the tendency of words to frequently occur together in the
-        text i.e. the 'cooccurence' criteria is used for clustering
+        based on the keywords' scores, with keywords having high scores in the
+        centre.
         
         The following pre-defined criteria can be used: 'cooccurence',
         'meaning', 'scores', 'random'
         
-        You can also define a custom criteria
+        You can also define a custom_similarity_matrix. 
         
         Parameters
         ----------
@@ -297,28 +337,28 @@ class Wordmesh():
             
         custom_similarity_matrix : numpy array or None, optional
             A 2-dimensional array with shape (num_keywords, num_keywords)
-            The entry a[i,j] defines the similarity between keyword[i] and 
-            keyword[j]. Words that are similar will be clustered together
-            
+            The entry a[i,j] is proportional to the 'dissimilarity' between
+            keyword[i] and keyword[j]. Words that are similar will be grouped
+            together on the canvas.
+        apply_regularization : bool, optional
+            Whether to regularize the similarity matrix to prevent extreme 
+            values.
         Returns
         -------
-        
-        numpy array
-            the similarity_matrix, i.e., a numpy array of shape (num_keywords, 
-            num_keywords).
+        None
         """
         if custom_similarity_matrix is not None:
             sm = custom_similarity_matrix
         elif by=='cooccurence':
-            self.normalized_text = normalize_text(self.text,
-                                                  lemmatize=self.lemmatize)
-            sm = csm(self.normalized_text,
-                                         self.normalized_keywords)
+            self._normalized_text = normalize_text(self.text,
+                                                  lemmatize=self._lemmatize)
+            sm = csm(self._normalized_text,
+                                         self._normalized_keywords)
         elif by=='random':
             num_kw = len(self.keywords)
             sm = np.random.normal(400, 90, (num_kw,num_kw))
             sm = 0.5*(sm + sm.T)
-            self.apply_delaunay = False
+            self._apply_delaunay = False
         
         elif by=='scores':
             mat = np.outer(self.scores, self.scores.T)
@@ -356,15 +396,24 @@ class Wordmesh():
             color components
         """
         if isinstance(bg_color, str):
-            self.bg_color = bg_color
+            self._bg_color = bg_color
         else:
             assert(len(bg_color)==3)
-            self.bg_color = 'rgb'+str(bg_color)
+            self._bg_color = 'rgb'+str(bg_color)
             
             
         self._flag_vis = True
         
-    def generate_embeddings(self):
+    def create_wordmesh(self):
+        """
+        Can be used to change the word placement in case the current
+        one isn't suitable. Since the steps involved in the creation of the
+        wordmesh are random, the result will come out looking different every 
+        time.
+        """
+        
+        #raise all the clustering flag, so as to run the MDS algorithm again
+        self._flag_clustering_criteria = True
         self._generate_embeddings()
     
     def _generate_embeddings(self):
@@ -377,28 +426,27 @@ class Wordmesh():
         if self._flag_fontsizes or self._flag_fontcolors or self._flag_vis:
             self._visualizer = PlotlyVisualizer(words = self.keywords,
                                                 fontsizes_norm =self.fontsizes_norm, 
-                                                height = self.resolution[0],
-                                                width = self.resolution[1], 
+                                                height = self._resolution[0],
+                                                width = self._resolution[1], 
                                                 textcolors=self.fontcolors,
-                                                bg_color = self.bg_color)
-            self._bounding_box_width_height = self._visualizer.bounding_box_dimensions
+                                                bg_color = self._bg_color)
+            self.bounding_box_width_height = self._visualizer.bounding_box_dimensions
         
         if self._flag_fontsizes or self._flag_clustering_criteria:
-            bbd = self._bounding_box_width_height
+            bbd = self.bounding_box_width_height
             fdm = ForceDirectedModel(self._mds, bbd, num_iters=NUM_ITERS,
-                                     apply_delaunay=self.apply_delaunay)
-            self.force_directed_model = fdm
+                                     apply_delaunay=self._apply_delaunay)
+            self._force_directed_model = fdm
             self.embeddings = fdm.equilibrium_position()
             
         #turn off all flags
         self._flag_clustering_criteria = False
         self._flag_fontsizes = False
         self._flag_fontcolors = False
-
-        
-    def _get_all_fditerations(self, num_slides=100):
-        all_pos = self.force_directed_model.all_centered_positions
-        num_iters = self.force_directed_model.num_iters
+      
+    def _get_all_fditerations(self, num_slides=10):
+        all_pos = self._force_directed_model.all_centered_positions
+        num_iters = self._force_directed_model.num_iters
         
         step_size = num_iters//num_slides
         slides = []
@@ -408,15 +456,27 @@ class Wordmesh():
             
         return np.stack(slides)
         
-
     def save_as_html(self, filename='wordmesh.html', 
-                     force_directed_animation=False, notebook_mode=False):
+                     force_directed_animation=False, notebook_mode=NOTEBOOK_MODE):
         """
-        Temporary
+        Save the plot as an html file.
+        
+        Parameters
+        ----------
+        
+        filename: str, (default='wordmesh.html')
+            The path of the html file 
+            
+        force_directed_animation: bool, optional
+            Setting this to True lets you visualize the force directed algorithm
+            
+        notebook_mode: bool, optional
+            Set this to True to view the plot in a jupyter notebook. 
+            The file will NOT be saved when notebook_mode is True.
         """  
         #generate embeddings if any of the wordmesh parameters have been modified
         if self._flag_clustering_criteria or self._flag_fontsizes or self._flag_fontcolors or self._flag_vis:
-            self.generate_embeddings()
+            self._generate_embeddings()
             
         if force_directed_animation:
             all_positions = self._get_all_fditerations()
@@ -427,7 +487,66 @@ class Wordmesh():
             self._visualizer.save_wordmesh_as_html(self.embeddings, filename,
                                                    notebook_mode=notebook_mode)
             
+    def plot(self, force_directed_animation=False):
+        """
+        Can be used to plot the wordmesh inside a jupyter notebook
+        
+        Parameters
+        ----------
+        
+        force_directed_animation : bool, optional
+            Setting this to True lets you visualize the force directed algorithm
+        """
+        self.save_as_html(force_directed_animation=force_directed_animation,
+                          notebook_mode=True)
+        
+            
 class LabelledWordmesh(Wordmesh):
+    """
+    Create a wordmesh from labelled text. This can be used when the text 
+    is composed of several sections, each having a label associated with it.
+    It can also be used to compare two different sources of text. 
+    
+    Attributes
+    ----------
+    text : pandas DataFrame
+        The 'text' and its corresponding 'label'
+        
+    keywords : list of str
+        The keywords extracted from the text.
+        
+    scores : numpy array
+        The scores assigned by the keyword extraction algorithm.
+        
+    pos_tags : list of str
+        The pos_tags corresponding to the keywords.
+        
+    labels : list of int
+        The labels corresponding to each keyword.
+        
+    embeddings : numpy array
+        An array of shape (num_keywords, 2), giving the locations of the 
+        keywords on the canvas.
+        
+    bounding_box_width_height : numpy array
+        An array of shape (num_keywords, 2) gives the width and height of
+        each keyword's bounding box. The coordinates of the centre of 
+        the box can be accessed through the 'embeddings' attribute.
+        
+    similarity_matrix : numpy array
+        The similarity matrix with shape (num_keywords, num_keywords), is 
+        proportional to the 'dissimilarity' between the ith and jth keywords. 
+        The matrix may have been regularized to prevent extreme values.
+        
+    fontsizes_norm : numpy array
+        The normalized fontsizes, the actual fontsizes depend on the 
+        visualization. These may have been regularized to avoid extreme values.
+        
+    fontcolors : list of str
+        The fontcolors as rgb strings. This format was chosen since it is 
+        supported by plotly.
+    
+    """
             
     def __init__(self, labelled_text, dimensions=(500, 900),
                  keyword_extractor='textrank', num_keywords=35, 
@@ -435,22 +554,46 @@ class LabelledWordmesh(Wordmesh):
                  extract_ngrams=False, filter_numbers=True,
                  filter_stopwords=True):
         """
-        Created a Wordmesh from labelled text. This can be used when the text 
-        is composed of several sections, each having a label associated with it.
-        It can also be used to compare two different sources of text. 
-        
         Parameters
         ----------
         
         labelled_text: list of (int, str) 
             Here the 'int' is the label associated with the text
         
-        num_keywords: int , optional
-            The number of keywords for each label
+        dimensions : tuple, optional 
+            The desired dimensions (height, width) of the wordcloud in pixels.
+            
+        keyword_extractor : {'textrank', 'sgrank', 'bestcoverage', 'tf'}, optional
+            The algorithm used for keyword extraction. 'tf' refers to simple
+            term frequency based extraction.
+            
+        num_keywords : int, optional
+            The number of keywords to be extracted from the text. In some cases,
+            if the text length is too short, fewer keywords might
+            be extracted without a warning being raised.
+            
+        lemmatize : bool, optional
+            Whether the text needs to be lemmatized before keywords are
+            extracted from it
+            
+        pos_filter : list of str, optional
+            Filters out all keywords EXCEPT the ones with these pos tags.
+            Supported pos tags-{'NOUN','PROPN','ADJ','VERB','ADV','SYM','PUNCT'}.
+            A POS filter can be applied on the keywords ONLY when the 
+            keyword_extractor has been set to 'tf'.
+            
+        extract_ngrams : bool, optional
+            Whether bi or tri-grams should be extracted.
         
+        filter_numbers : bool, optional
+            Whether numbers should be filtered out
+            
+        filter_stopwords: bool, optional
+            Whether stopwords should be filtered out
         Returns
         -------
-        Wordmesh
+        LabelledWordmesh
+            A LabelledWordmesh object, which inherits from Wordmesh
         """
         if not (isinstance(labelled_text, list) or isinstance(labelled_text, pd.DataFrame)):
             raise ValueError('labelled_text can only be a list or a pandas \
@@ -484,37 +627,37 @@ class LabelledWordmesh(Wordmesh):
     def _extract_keywords(self):
         
         self.keywords, self.pos_tags, self.labels = [],[],[]
-        self.normalized_keywords = []
+        self._normalized_keywords = []
         self.scores = np.array([])
         
         for key in self.text_dict:
-            if self.keyword_extractor == 'tf':
+            if self._keyword_extractor == 'tf':
                 
                 kw, sc, pos, n_kw = \
                 extract_terms_by_frequency(self.text_dict[key], 
-                                           self.num_keywords, 
-                                           self.pos_filter, 
-                                           self.filter_numbers, 
-                                           self.extract_ngrams,
-                                           lemmatize=self.lemmatize,
-                                           filter_stopwords=self.filter_stopwords)
+                                           self._num_required_keywords, 
+                                           self._pos_filter, 
+                                           self._filter_numbers, 
+                                           self._extract_ngrams,
+                                           lemmatize=self._lemmatize,
+                                           filter_stopwords=self._filter_stopwords)
             else:
                 kw, sc, pos, n_kw = \
                 extract_terms_by_score(self.text_dict[key], 
-                                       self.keyword_extractor,
-                                       self.num_keywords, 
-                                       self.extract_ngrams,
-                                       lemmatize=self.lemmatize,
-                                       filter_stopwords = self.filter_stopwords)
+                                       self._keyword_extractor,
+                                       self._num_required_keywords, 
+                                       self._extract_ngrams,
+                                       lemmatize=self._lemmatize,
+                                       filter_stopwords = self._filter_stopwords)
                 
             self.keywords = self.keywords + kw
             self.scores = np.concatenate((self.scores, sc))
             self.pos_tags = self.pos_tags + pos
             self.labels = self.labels + [key]*len(kw)
             
-            #self.normalized_keywords are all lemmatized if self.lemmatize is True,
+            #self._normalized_keywords are all lemmatized if self._lemmatize is True,
             #unlike self.keywords which contain capitalized named entities
-            self.normalized_keywords = self.normalized_keywords + n_kw
+            self._normalized_keywords = self._normalized_keywords + n_kw
             
 
     def set_fontcolor(self, by='label', colorscale='Set3', 
@@ -522,13 +665,12 @@ class LabelledWordmesh(Wordmesh):
         """
         This function can be used to pick a metric which decides the font color
         for each extracted keyword. By default, the font color is assigned 
-        according to the label of the keyword.
+        based on the score of each keyword.
         
-        Fonts can be picked by: 'label', 'random', 'scores', 'pos_tag' None
+        Fonts can be picked by: 'label', 'random', 'scores', 'pos_tag', 'clustering_criteria'
         
-        You can also choose custom font colors by passing in a dictionary 
-        of word:fontcolor pairs using the argument custom_sizes, where 
-        fontcolor is an (R, G, B) tuple
+        You can also choose custom font colors by passing in a list of 
+        (R,G,B) tuples with values for each component falling in [0,255].
         
         Parameters
         ----------
@@ -545,9 +687,9 @@ class LabelledWordmesh(Wordmesh):
             
         Returns
         -------
-        
         None
         """
+        
         if by=='label' and (custom_colors is None):
             scales = cl.scales['8']['qual']
             #All colorscales in 'scales.keys()' can be used
@@ -571,17 +713,47 @@ class LabelledWordmesh(Wordmesh):
     def set_clustering_criteria(self, by='scores', 
                                 custom_similarity_matrix=None, 
                                 apply_regularization=True):
+        """
+        This function can be used to define the criteria for clustering of
+        different keywords in the wordcloud. By default, clustering is done
+        based on the keywords' scores, with keywords having high scores in the
+        centre.
+        
+        The following pre-defined criteria can be used: 'cooccurence',
+        'meaning', 'scores', 'random'
+        
+        You can also define a custom_similarity_matrix. 
+        
+        Parameters
+        ----------
+        by : string or None, optional
+            The pre-defined criteria used to cluster keywords
+            
+        custom_similarity_matrix : numpy array or None, optional
+            A 2-dimensional array with shape (num_keywords, num_keywords)
+            The entry a[i,j] is proportional to the 'dissimilarity' between
+            keyword[i] and keyword[j]. Words that are similar will be grouped
+            together on the canvas.
+            
+        apply_regularization : bool, optional
+            Whether to regularize the similarity matrix to prevent extreme 
+            values.
+            
+        Returns
+        -------
+        None
+        """
         
         if by=='cooccurence':
             
             normalized = self.text
             normalized['text'] = normalized['text']\
-            .apply(lambda x: normalize_text(x, lemmatize=self.lemmatize))
+            .apply(lambda x: normalize_text(x, lemmatize=self._lemmatize))
             
-            self.normalized_text = list(normalized.itertuples(False, None))
+            #self._normalized_text = list(normalized.itertuples(False, None))
             
-            sm = csm(self.normalized_text, 
-                     self.normalized_keywords, 
+            sm = csm(self._normalized_text, 
+                     self._normalized_keywords, 
                      labelled=True, labels=self.labels)
             Wordmesh.set_clustering_criteria(self, custom_similarity_matrix=sm, 
                                              apply_regularization=apply_regularization)

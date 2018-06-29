@@ -38,11 +38,12 @@ if __name__ == '__main__':
     with open('sample_speech.txt') as f:
          trump_text = f.read()
          
-    labelled_text = [(i%3, trump_text[i*2500: i*2500 + 2500]) for i in range(6)]
-    wm = LabelledWordmesh(labelled_text, dimensions=(900, 1500), 
-                          keyword_extractor='textrank', 
-                          extract_ngrams=False, num_keywords=20, 
-                          lemmatize=True)
+    
+    wm = Wordmesh(trump_text, dimensions=(900, 1500), 
+                  keyword_extractor='textrank', 
+                  extract_ngrams=False, num_keywords=20, 
+                  lemmatize=True)
+    
     wm.set_clustering_criteria('meaning')
     #wm.set_fontsize('scores')
     #m.set_fontcolor('scores','YlGnBu')

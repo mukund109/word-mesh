@@ -109,6 +109,7 @@ TODO
 
 #for experimentation
 examples/Untitled.ipynb
+wordmesh/utils_legacy.py
 
 # Temporary plotly plots
 temp-plot.html

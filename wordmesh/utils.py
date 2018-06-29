@@ -212,25 +212,15 @@ def _cooccurence_score2(text, word1, word2):
     return avg
 
 def _smallest_cooc_distances(list1, list2):
-    if not isinstance(list1, np.ndarray):
-        list1 = np.array(list1)
-        list2 = np.array(list2)
-    
-    num1, num2 = len(list1),len(list2)
-    
-    pairwise_distances = np.tile(list1, (num2,1)) - np.tile(list2, (num1,1)).T
-    smallest_distances = np.min(np.abs(pairwise_distances), axis=1)
-    sum_ = np.sum(smallest_distances)
-    
     #The method above is equivalent to the following:
-    """
+    
     smallest_distance = 10000000
     sum_=0
     for i in list1:
         for j in list2:
             smallest_distance = min(smallest_distance, abs(i-j))
         sum_ += smallest_distance
-    """
+    
     
     return sum_/len(list2)
 
@@ -243,31 +233,15 @@ def _find_all(text, substring, offset=0):
         return [offset+loc] + [offset+loc+i+1 for i in sub_locs]
     
 def _find_all_labelled(labelled_text, substring, substring_label):
-    """
+
     labelled_text['offset'] = labelled_text['text'].apply(len)
     labelled_text['offset'] = labelled_text['offset'].shift(1).fillna(0).cumsum()
        
-    findf = lambda row: _find_all(row['text'], substring, offset=row['offset'])
-    print(substring, substring_label)
-    print(labelled_text.shape)
-    print(labelled_text)
-    locations = labelled_text[labelled_text['label']==substring_label].apply(findf, axis=1)
-    print(locations)
-    
-    return locations.sum()
-    """
-    """
-    start = 0
-    locations = []
-    for row in labelled_text.iterrows():
-        label, text = row[1]['label'], row[1]['text']
-        if label==substring_label:
-            loc = [start+i for i in _find_all(text, substring)]
-            locations += loc
-        start += len(text)
-    """
-    #The code above is equivalent to the following
+    locations = labelled_text['text'].str.find(substring)
+    return labelled_text[~(locations==-1) & (labelled_text['label']==substring_label)]['offset']
 
+    #The code above is equivalent to the following
+    """
     start = 0
     locations = []
     for label, text in labelled_text:
@@ -275,7 +249,7 @@ def _find_all_labelled(labelled_text, substring, substring_label):
             loc = [start+i for i in _find_all(text, substring)]
             locations += loc
         start += len(text)
-    
+    """
     return locations
 
 def _cooccurence_score_labelled(labelled_text, word1, word2, label1, label2):
