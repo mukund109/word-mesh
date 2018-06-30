@@ -177,8 +177,8 @@ def _update_positions(current_positions, bounding_box_dimensions, simplices,
         
 class ForceDirectedModel():
     
-    def __init__(self, positions, bounding_box_dimensions, cluster_labels=None,
-                 num_iters=1000, apply_delaunay=True):
+    def __init__(self, positions, bounding_box_dimensions,
+                 num_iters=1000, apply_delaunay=True, delaunay_multiplier=None):
         
         """
         Parameters
@@ -196,10 +196,11 @@ class ForceDirectedModel():
         -------
             a ForceDirectedModel object
         """
+        if delaunay_multiplier is not None:
+            DELAUNAY_MULTIPLIER = delaunay_multiplier
         self.num_particles = positions.shape[0]
         self.initial_positions = positions
         self.bounding_box_dimensions = bounding_box_dimensions
-        self.cluster_labels = cluster_labels
         self.num_iters = num_iters
         self.apply_delaunay = apply_delaunay
         self.simplices = Delaunay(positions).simplices

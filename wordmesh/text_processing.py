@@ -34,7 +34,7 @@ def _text_preprocessing(text):
     Apostrophes not handled properly by spaCy
     https://github.com/explosion/spaCy/issues/685
     """
-    return text.replace('’s', 's').replace('’m', 'm')
+    return text.replace('’s', '').replace('’m', '')
 
 def _text_postprocessing(doc, keywords):
     """
@@ -60,7 +60,7 @@ def _filter(keywords, scores, filter_stopwords, num_terms):
     stopwords = STOPWORDS if filter_stopwords else set()
     for i,kw in enumerate(keywords):
         if kw.find('-PRON-')==-1 and (kw not in stopwords) \
-        and (kw!='') and (len(kw.split(' '))<=NGRAM_LIMIT):
+        and (kw!='') and (len(kw.split(' '))<=NGRAM_LIMIT) and (kw!='_'):
             tempkw.append(kw)
             temps.append(scores[i])
     

@@ -10,7 +10,7 @@ from .text_processing import normalize_text, get_semantic_similarity_matrix
 from .utils import cooccurence_similarity_matrix as csm
 from .utils import regularize
 import numpy as np
-from sklearn.manifold import MDS
+from sklearn.manifold import MDS, TSNE
 from .utils import PlotlyVisualizer
 from .force_directed_model import ForceDirectedModel
 import colorlover as cl
@@ -64,7 +64,7 @@ class Wordmesh():
     
     """
     def __init__(self, text, dimensions=(500, 900),
-                 keyword_extractor='textrank', num_keywords=35, 
+                 keyword_extractor='textrank', num_keywords=70, 
                  lemmatize=True, pos_filter=None, 
                  extract_ngrams=False, filter_numbers=True,
                  filter_stopwords=True):
@@ -125,13 +125,13 @@ class Wordmesh():
             pos_filter = ['NOUN','ADJ','PROPN']
             
         #textacy's functions are unstable when the following condition is met
+        #They just churn out terrible ngrams
         if (keyword_extractor!='tf') and extract_ngrams:
             msg = 'Currently, extracting ngrams using graph based methods ' +\
             'is not advisable. This is due to underlying issues ' +\
             'with textacy which will be fixed in the future. '+\
             'For now, you can set \'extract_ngrams\' to False.'
             raise NotImplementedError(msg)
-            
             
         self.text = text
         self._resolution = dimensions
@@ -231,7 +231,7 @@ class Wordmesh():
         self._flag_fontsizes = True
 
             
-    def set_fontcolor(self, by='scores', colorscale='YlGnBu', 
+    def set_fontcolor(self, by='scores', colorscale='YlOrRd', 
                       custom_colors=None):
         """
         This function can be used to pick a metric which decides the font color
@@ -297,7 +297,7 @@ class Wordmesh():
             
         elif by=='pos_tag':
             c = cl.scales['5']['qual']['Set2'] + ['rgb(254,254,254)', 'rgb(254,254,254)']
-            tags = ['NOUN','PROPN','ADJ','VERB','ADV','SYM','PUNCT']
+            tags = ['NOUN','PROPN','ADJ','VERB','ADV','SYM','ADP']
             mapping = {tag:c[i] for i,tag in enumerate(tags)}
             self.fontcolors = list(map(mapping.get, self.pos_tags))
             
@@ -317,7 +317,8 @@ class Wordmesh():
             
     def set_clustering_criteria(self, by='scores', 
                           custom_similarity_matrix=None, 
-                          apply_regularization=True):
+                          apply_regularization=True, 
+                          clustering_algorithm = 'MDS', delaunay_factor=None):
         """
         This function can be used to define the criteria for clustering of
         different keywords in the wordcloud. By default, clustering is done
@@ -340,9 +341,14 @@ class Wordmesh():
             The entry a[i,j] is proportional to the 'dissimilarity' between
             keyword[i] and keyword[j]. Words that are similar will be grouped
             together on the canvas.
+            
         apply_regularization : bool, optional
             Whether to regularize the similarity matrix to prevent extreme 
             values.
+            
+        clustering_algorithm : {'MDS', 'TSNE'}, optional
+            The algorithm used to find the initial embeddings based on the 
+            similarity matrix.
         Returns
         -------
         None
@@ -380,6 +386,11 @@ class Wordmesh():
         sm = sm*SIMILARITY_MEAN/np.mean(sm)
         
         self.similarity_matrix= sm
+        if clustering_algorithm not in ['MDS','TSNE']:
+            raise ValueError('Only the following clustering algorithms \
+                             are supported: {}'.format(['MDS','TSNE']))
+        self._clustering_algorithm = clustering_algorithm
+        self._delaunay_factor = delaunay_factor
         
         #raise a flag indicating that the clustering criteria has been modified
         self._flag_clustering_criteria = True
@@ -404,7 +415,7 @@ class Wordmesh():
             
         self._flag_vis = True
         
-    def create_wordmesh(self):
+    def recreate_wordmesh(self):
         """
         Can be used to change the word placement in case the current
         one isn't suitable. Since the steps involved in the creation of the
@@ -419,9 +430,15 @@ class Wordmesh():
     def _generate_embeddings(self):
         
         if self._flag_clustering_criteria:
+            
             mds = MDS(2, dissimilarity='precomputed').\
                                  fit_transform(self.similarity_matrix)
-            self._mds = mds
+            self._initial_embeds = mds
+            
+            if self._clustering_algorithm == 'TSNE':
+                self._initial_embeds = TSNE(metric='precomputed', perplexity=3,
+                                            early_exaggeration=1, init=mds).\
+                                            fit_transform(self.similarity_matrix)
             
         if self._flag_fontsizes or self._flag_fontcolors or self._flag_vis:
             self._visualizer = PlotlyVisualizer(words = self.keywords,
@@ -434,8 +451,9 @@ class Wordmesh():
         
         if self._flag_fontsizes or self._flag_clustering_criteria:
             bbd = self.bounding_box_width_height
-            fdm = ForceDirectedModel(self._mds, bbd, num_iters=NUM_ITERS,
-                                     apply_delaunay=self._apply_delaunay)
+            fdm = ForceDirectedModel(self._initial_embeds, bbd, num_iters=NUM_ITERS,
+                                     apply_delaunay=self._apply_delaunay,
+                                     delaunay_multiplier=self._delaunay_factor)
             self._force_directed_model = fdm
             self.embeddings = fdm.equilibrium_position()
             
@@ -712,7 +730,8 @@ class LabelledWordmesh(Wordmesh):
         
     def set_clustering_criteria(self, by='scores', 
                                 custom_similarity_matrix=None, 
-                                apply_regularization=True):
+                                apply_regularization=True,
+                                clustering_algorithm='MDS'):
         """
         This function can be used to define the criteria for clustering of
         different keywords in the wordcloud. By default, clustering is done
@@ -738,7 +757,10 @@ class LabelledWordmesh(Wordmesh):
         apply_regularization : bool, optional
             Whether to regularize the similarity matrix to prevent extreme 
             values.
-            
+        
+        clustering_algorithm : {'MDS', 'TSNE'}, optional
+            The algorithm used to find the initial embeddings based on the 
+            similarity matrix.
         Returns
         -------
         None
@@ -756,8 +778,10 @@ class LabelledWordmesh(Wordmesh):
                      self._normalized_keywords, 
                      labelled=True, labels=self.labels)
             Wordmesh.set_clustering_criteria(self, custom_similarity_matrix=sm, 
-                                             apply_regularization=apply_regularization)
+                                             apply_regularization=apply_regularization,
+                                             clustering_algorithm=clustering_algorithm)
         else:
             Wordmesh.set_clustering_criteria(self, by=by, 
                                              custom_similarity_matrix=custom_similarity_matrix,
-                                             apply_regularization=apply_regularization)
+                                             apply_regularization=apply_regularization,
+                                             clustering_algorithm=clustering_algorithm)

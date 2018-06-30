@@ -207,8 +207,8 @@ def _cooccurence_score(text, word1, word2):
 def _cooccurence_score2(text, word1, word2):
     l1 = _find_all(text, word1)
     l2 = _find_all(text, word2)
-    avg = _smallest_cooc_distances(l1, l2, len(text)) + \
-                                    _smallest_cooc_distances(l2, l1, len(text))
+    avg = _smallest_cooc_distances(l1, l2) + \
+                                    _smallest_cooc_distances(l2, l1)
     return avg
 
 def _smallest_cooc_distances(list1, list2):
