@@ -36,7 +36,7 @@ def _text_preprocessing(text):
     """
     return text.replace('’s', '').replace('’m', '')
 
-def _text_postprocessing(doc, keywords):
+def _text_postprocessing(doc, keywords, extract_ngrams=False):
     """
     named entities are converted to uppercase
     """
@@ -51,6 +51,11 @@ def _text_postprocessing(doc, keywords):
         except ValueError:
             continue
     
+    #if there is a redundant space character, it will be removed
+    if not extract_ngrams:
+        for i,word in enumerate(keywords):
+            keywords[i] = word.replace(' ','')
+        
     return keywords
 
 def _filter(keywords, scores, filter_stopwords, num_terms):
@@ -119,7 +124,7 @@ def extract_terms_by_score(text, algorithm, num_terms, extract_ngrams,
     pos_tags = [mapping[end] for end in ending_tokens]
 
     normalized_keywords = keywords.copy()
-    keywords = _text_postprocessing(doc, keywords)
+    keywords = _text_postprocessing(doc, keywords, extract_ngrams)
     return keywords, scores, pos_tags, normalized_keywords
    
 def _get_pos_mapping(doc, normalize):
@@ -225,7 +230,7 @@ def extract_terms_by_frequency(text,
     pos_tags = [mapping[end] for end in ending_tokens]
     
     normalized_keywords = keywords.copy()
-    keywords = _text_postprocessing(doc, keywords)
+    keywords = _text_postprocessing(doc, keywords, extract_ngrams)
     return keywords, scores, pos_tags, normalized_keywords
     
             

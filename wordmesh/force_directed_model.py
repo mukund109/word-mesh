@@ -203,7 +203,12 @@ class ForceDirectedModel():
         self.bounding_box_dimensions = bounding_box_dimensions
         self.num_iters = num_iters
         self.apply_delaunay = apply_delaunay
-        self.simplices = Delaunay(positions).simplices
+        
+        if apply_delaunay:
+            self.simplices = Delaunay(positions).simplices
+        else:
+            self.simplices = None
+            
         self.all_positions = self._run_algorithm()
         self.all_centered_positions = self._centered_positions()
         

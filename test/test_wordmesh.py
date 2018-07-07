@@ -34,18 +34,4 @@ class TestWordmesh(unittest.TestCase):
         pass
         
 if __name__ == '__main__':
-    #unittest.main()
-    with open('sample_speech.txt') as f:
-         trump_text = f.read()
-         
-    
-    wm = Wordmesh(trump_text, dimensions=(900, 1500), 
-                  keyword_extractor='textrank', 
-                  extract_ngrams=False, num_keywords=20, 
-                  lemmatize=True)
-    
-    wm.set_clustering_criteria('meaning')
-    #wm.set_fontsize('scores')
-    #m.set_fontcolor('scores','YlGnBu')
-    
-    print('done')
+    unittest.main()

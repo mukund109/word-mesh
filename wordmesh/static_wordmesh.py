@@ -133,6 +133,9 @@ class Wordmesh():
             'For now, you can set \'extract_ngrams\' to False.'
             raise NotImplementedError(msg)
             
+        if len(text)<=10:
+            raise ValueError("The text cannot have less that 10 characters.")
+            
         self.text = text
         self._resolution = dimensions
         self._lemmatize = lemmatize
@@ -142,8 +145,31 @@ class Wordmesh():
         self._num_required_keywords = num_keywords
         self._filter_numbers = filter_numbers
         self._filter_stopwords = filter_stopwords
-        self._apply_delaunay = True
-        self._extract_keywords()
+        
+        #If textacy throws the following error while extracting keywords,
+        #it means that the text is too short
+        try:
+            self._extract_keywords()
+        except ValueError as e:
+            if str(e).find('must contain at least 1 term')==-1:
+                raise
+            else:
+                self.keywords = []
+        
+        #Text too short to extract keywords
+        if len(self.keywords)<2 and self._keyword_extractor!='tf':
+            msg = 'Text is too short to extract any keywords using ' + \
+            '\'{}\'. Try switching to \'tf\' based extraction.'.format(self._keyword_extractor)
+            raise ValueError(msg)
+        elif len(self.keywords)<2:
+            raise ValueError('Text is too short to extract any keywords.')
+            
+        #Cannot apply delaunay triangulation on less than 4 points
+        if len(self.keywords)<4:
+            self._apply_delaunay = False
+        else:
+            self._apply_delaunay = True
+            
         self.set_visualization_params()
         self.set_fontsize()
         self.set_fontcolor()
@@ -436,8 +462,8 @@ class Wordmesh():
             self._initial_embeds = mds
             
             if self._clustering_algorithm == 'TSNE':
-                self._initial_embeds = TSNE(metric='precomputed', perplexity=3,
-                                            early_exaggeration=1, init=mds).\
+                self._initial_embeds = TSNE(metric='precomputed', 
+                                            perplexity=3, init=mds).\
                                             fit_transform(self.similarity_matrix)
             
         if self._flag_fontsizes or self._flag_fontcolors or self._flag_vis:

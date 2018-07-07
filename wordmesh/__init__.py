@@ -5,8 +5,10 @@ Created on Sun May 27 20:38:01 2018
 
 @author: mukund
 """
+__version__ = '0.1.0b1'
+
 from .static_wordmesh import Wordmesh, LabelledWordmesh
 
-from .utils import PlotlyVisualizer
+from .text_processing import STOPWORDS 
 
 from .force_directed_model import ForceDirectedModel
