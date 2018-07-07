@@ -65,35 +65,40 @@ This is required for POS tagging and for accessing word vectors. For more inform
 
 All functionality is contained within the 'Wordmesh' class.
 
-    from wordmesh import Wordmesh
-    
-    #Create a Wordmesh object by passing the constructor the text that you wish to summarize
-    with open('sample.txt', 'r') as f:
-        text = f.read()
-    wm = Wordmesh(text) 
-    
-    #Save the plot
-    wm.save_as_html(filename='my-wordmesh.html')
-    #You can now open it in the browser, and subsequently save it in jpeg format if required
-    
-    #If you are using a jupyter notebook, you can plot it inline
-    wm.plot()
-    
+```python
+from wordmesh import Wordmesh
+
+#Create a Wordmesh object by passing the constructor the text that you wish to summarize
+with open('sample.txt', 'r') as f:
+    text = f.read()
+wm = Wordmesh(text) 
+
+#Save the plot
+wm.save_as_html(filename='my-wordmesh.html')
+#You can now open it in the browser, and subsequently save it in jpeg format if required
+
+#If you are using a jupyter notebook, you can plot it inline
+wm.plot()
+```
 The Wordmesh object offers 3 'set' methods which can be used to set the fontsize, fontcolor and the clustering criteria. **Check the inline documentation for details**.
 
-    wm.set_fontsize(by='scores')
-    wm.set_fontcolor(by='random')
-    wm.set_clustering_criteria(by='meaning')
+```python
+wm.set_fontsize(by='scores')
+wm.set_fontcolor(by='random')
+wm.set_clustering_criteria(by='meaning')
+```
    
 You can access keywords, pos_tags, keyword scores and other important features of the text. These may be used to set custom visualization parameters.
 
-    print(wm.keywords, wm.pos_tags, wm.scores)
-    
-    #set NOUNs to red and all else to green
-    f = lambda x: (200,0,0) if (x=='NOUN') else (0,200,0)
-    colors = list(map(f, wm.pos_tags))
-    
-    wm.set_fontcolor(custom_colors=colors)
+```python
+print(wm.keywords, wm.pos_tags, wm.scores)
+
+#set NOUNs to red and all else to green
+f = lambda x: (200,0,0) if (x=='NOUN') else (0,200,0)
+colors = list(map(f, wm.pos_tags))
+
+wm.set_fontcolor(custom_colors=colors)
+```
     
 For more examples check out [this](examples/examples.ipynb) notebook.
 
