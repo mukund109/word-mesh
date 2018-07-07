@@ -34,7 +34,7 @@ def _text_preprocessing(text):
     Apostrophes not handled properly by spaCy
     https://github.com/explosion/spaCy/issues/685
     """
-    return text.replace('’s', '').replace('’m', '')
+    return text.replace('’s', '').replace('’m', '').replace('\'s','')
 
 def _text_postprocessing(doc, keywords, extract_ngrams=False):
     """
@@ -54,7 +54,8 @@ def _text_postprocessing(doc, keywords, extract_ngrams=False):
     #if there is a redundant space character, it will be removed
     if not extract_ngrams:
         for i,word in enumerate(keywords):
-            keywords[i] = word.replace(' ','')
+            if word[0]==' ':
+                keywords[i] = word.replace(' ','')
         
     return keywords
 
@@ -127,16 +128,28 @@ def extract_terms_by_score(text, algorithm, num_terms, extract_ngrams,
     keywords = _text_postprocessing(doc, keywords, extract_ngrams)
     return keywords, scores, pos_tags, normalized_keywords
    
-def _get_pos_mapping(doc, normalize):
+def _get_pos_mapping(doc, normalize, pos_filter=['NOUN','PROPN','ADJ',
+                                                 'VERB','ADV','SYM','PUNCT']):
+    
+    """
+    Iterates through the doc and finds the pos_tag corresponding to each 
+    token. This is then mapped to the token's normalized form.
+    Since the same word can have multiple different POS tags, only the tag 
+    present in pos_filter is kept. If multiple tags are present in pos_filter, 
+    then the update sequence of the dictionary determines which one is kept.
+    """
     mapping = dict()
     if normalize=='lemma':
         for token in doc:
+            if (token.pos_ in pos_filter) or (token.lemma_ not in mapping.keys()):
                 mapping.update({token.lemma_:token.pos_})
     elif normalize=='lower':
         for token in doc:
-            mapping.update({token.lower_:token.pos_})
+            if (token.pos_ in pos_filter) or (token.lower_ not in mapping.keys()):
+                mapping.update({token.lower_:token.pos_})
     else:
         for token in doc:
+            if (token.pos_ in pos_filter) or (token.text not in mapping.keys()):
                 mapping.update({token.text:token.pos_})
         
     return mapping
@@ -226,7 +239,7 @@ def extract_terms_by_frequency(text,
     #get pos tags for keywords, if keywords are multi-grams, the 
     #pos tag of the last word in the multi-gram is picked
     ending_tokens = [ngram.split(' ')[-1] for ngram in keywords]
-    mapping = _get_pos_mapping(doc, normalize)
+    mapping = _get_pos_mapping(doc, normalize, pos_filter)
     pos_tags = [mapping[end] for end in ending_tokens]
     
     normalized_keywords = keywords.copy()
