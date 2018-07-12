@@ -13,7 +13,7 @@ Most popular open-source wordcloud generators ([word_cloud](https://github.com/a
  
  - *keyword filtering*: Extracted keywords can be filtered based on their pos tags or whether they are named entities.
  
- - *fontcolors and fontsizes*: These can be set based on the following criteria - word frequency, pos-tags, ranking algorithm score.
+ - *font colors and font sizes*: These can be set based on the following criteria - word frequency, pos-tags, ranking algorithm score.
  
 
 ## How it works?
@@ -22,20 +22,20 @@ Most popular open-source wordcloud generators ([word_cloud](https://github.com/a
 
 ## Examples
 
-Here's a visalization of the force-directed algorithm. The words are extracted using *textrank* from a textbook on international law, and are grouped together on the canvas based on their co-occurence frequency. The colours indicate the pos tags of the words.
+Here's a visualization of the force-directed algorithm. The words are extracted using *textrank* from a textbook on international law, and are grouped together on the canvas based on their co-occurrence frequency. The colours indicate the pos tags of the words.
 
 ![animation](examples/animation.gif)
 
 
-This wordmesh was created from Steve Job's famous commencement speech at Stanford. The keywords are extracted using *textrank* and clustered based on their *scores*. The fontcolors and fontsizes are also a function of the scores. *[Code](examples/examples.ipynb)*
+This wordmesh was created from Steve Job's famous commencement speech at Stanford. The keywords are extracted using *textrank* and clustered based on their *scores*. The font colors and font sizes are also a function of the scores. *[Code](examples/examples.ipynb)*
 
 ![jobs-scores](examples/Jobs-speech-scores.png)
 
-This is from the same text, but the clustering has been done based on *cooccurence frequency* of keywords. The colors have been assigned using the same criteria used to cluster them. 
+This is from the same text, but the clustering has been done based on *co-occurrence frequency* of keywords. The colors have been assigned using the same criteria used to cluster them. 
 
 This is quite apparent from the positions of the words. You can see the words like 'hungry' and 'foolish' have been grouped together, since they occur close to each other in the text as part of the famous quote **"Stay hungry. Stay foolish"**. *[Code](examples/examples.ipynb)*
 
-![jobs-cooccurence](examples/Jobs-speech-cooccurence-demo.png)
+![jobs-co-occurence](examples/Jobs-speech-cooccurence-demo.png)
 
 
 
@@ -45,7 +45,7 @@ This is a wordmesh of all the *adjectives* used in a 2016 US Presidential Debate
 
 
 
-This example is taken from a news article on the Brazil vs Belgium 2018 Russia WC QF. The colors correspond to the *POS tags* of the words. The second figure is the same wordmesh clustered based on the words' *cooccurence frequency*. *[Code](examples/examples.ipynb)*
+This example is taken from a news article on the Brazil vs Belgium 2018 Russia WC QF. The colors correspond to the *POS tags* of the words. The second figure is the same wordmesh clustered based on the words' *co-occurrence frequency*. *[Code](examples/examples.ipynb)*
 
 ![fifa](examples/Belgium-Brazil.png) ![fifa2](examples/Belgium-Brazil-cooccurence.png)
 
