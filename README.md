@@ -1,15 +1,6 @@
 # word-mesh
 A wordcloud/wordmesh generator that allows users to extract keywords from text, and create a simple and interpretable wordcloud.
 
-## Table of Contents
-
-* [Why word-mesh](#why-word-mesh)
-* [How it works](#how-it-works)
-* [Examples](#examples)
-* [Installation](#installation)
-* [Tutorial](#tutorial)
-* [Notes](#notes)
-
 ## Why word-mesh?
 
 Most popular open-source wordcloud generators ([word_cloud](https://github.com/amueller/word_cloud), [d3-cloud](https://github.com/jasondavies/d3-cloud), [echarts-wordcloud](https://github.com/ecomfe/echarts-wordcloud)) focus more on the aesthetics of the visualization than on effectively conveying textual features. **word-mesh** strikes a balance between the two and uses the various statistical, semantic and grammatical features of the text to inform visualization parameters.
